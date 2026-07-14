@@ -135,7 +135,14 @@ async fn login_and_sync_google_drive(app: tauri::AppHandle) -> Result<String, St
 }
 
 #[tauri::command]
-async fn start_p2p_network() -> Result<String, String> {
+async fn start_p2p_network(
+    intent_recruiting: bool,
+    intent_looking_job: bool,
+    intent_hiring_freelancer: bool,
+    intent_freelancing: bool,
+    contact_email: String,
+    state: tauri::State<'_, AppState>
+) -> Result<String, String> {
     // Port and Bootstrap nodes could be injected via .env for local testing multiple nodes
     let port: u16 = std::env::var("MYDNA_P2P_PORT")
         .unwrap_or_else(|_| "8000".to_string())
@@ -149,16 +156,58 @@ async fn start_p2p_network() -> Result<String, String> {
         bootstrap_str.split(',').map(|s| s.to_string()).collect()
     };
 
-    // Load private key from keychain
-    let key_hex = keyring::Entry::new("MyDNA_Enterprise_P2P", "SystemCore_Ed25519")
-        .map_err(|e| format!("Keychain error: {}", e))?
-        .get_password()
-        .map_err(|_| "Private key not found. Please sync identity first.".to_string())?;
+    // Hỗ trợ Clustering giả lập: Nếu chạy nhiều Node trên 1 máy
+    let node_suffix = std::env::var("MYDNA_TEST_NODE").unwrap_or_default();
+    let service_name = if node_suffix.is_empty() {
+        "MyDNA_Enterprise_P2P".to_string()
+    } else {
+        format!("MyDNA_Enterprise_P2P_{}", node_suffix)
+    };
+
+    let entry = keyring::Entry::new(&service_name, "SystemCore_Ed25519")
+        .map_err(|e| format!("Keychain error: {}", e))?;
+        
+    let key_hex = match entry.get_password() {
+        Ok(k) => k,
+        Err(_) => {
+            // Tự động sinh Key cho Test Node giả lập
+            if !node_suffix.is_empty() {
+                let kp = libp2p::identity::ed25519::Keypair::generate();
+                let hex = hex::encode(kp.to_bytes());
+                let _ = entry.set_password(&hex);
+                hex
+            } else {
+                return Err("Private key not found. Please sync identity first.".to_string());
+            }
+        }
+    };
     
     let mut key_bytes = [0u8; 32];
     hex::decode_to_slice(&key_hex, &mut key_bytes).map_err(|_| "Invalid key hex".to_string())?;
 
-    crate::telemetry::p2p_network::P2pNetworkManager::start_node(port, bootstrap_nodes, &mut key_bytes)
+    // Fetch real skills from DNA Profile
+    let mut skills = vec![];
+    if let Ok(val) = get_dna_profile(state.clone()).await {
+        if let Some(good) = val["coding_habits"]["good"].as_array() {
+             for s in good { skills.push(s.as_str().unwrap_or("").to_string()); }
+        }
+        if let Some(prof) = val["profession"].as_str() {
+             skills.push(prof.to_string());
+        }
+    }
+
+    let user_intent = crate::telemetry::p2p_network::MatchIntent {
+        peer_id: "".to_string(), // Set later
+        is_recruiting: intent_recruiting,
+        is_looking_for_job: intent_looking_job,
+        is_hiring_freelancer: intent_hiring_freelancer,
+        is_freelancing: intent_freelancing,
+        contact_email,
+        skills,
+        integrity_snapshot: None, // Set later
+    };
+
+    crate::telemetry::p2p_network::P2pNetworkManager::start_node(port, bootstrap_nodes, &mut key_bytes, user_intent)
         .await?;
 
     Ok(format!("P2P Network started on port {}", port))
@@ -166,18 +215,29 @@ async fn start_p2p_network() -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Đảm bảo thư mục tồn tại trước khi mở DB hoặc khởi tạo file watcher (Sửa lỗi Crash do thiếu Folder)
-    std::fs::create_dir_all("portable-test/system-logs").unwrap_or_default();
+    let node_suffix = std::env::var("MYDNA_TEST_NODE").unwrap_or_default();
+    let db_dir = if node_suffix.is_empty() {
+        "portable-test".to_string()
+    } else {
+        format!("portable-test/{}", node_suffix)
+    };
 
-    // Khởi tạo SQLite tại portable-test/local_events.db
-    let db_path = "portable-test/local_events.db";
-    let state_machine = StateMachine::new(db_path).expect("Failed to initialize SQLite DB");
+    // Đảm bảo thư mục tồn tại trước khi mở DB hoặc khởi tạo file watcher
+    std::fs::create_dir_all(format!("{}/system-logs", db_dir)).unwrap_or_default();
+    std::fs::create_dir_all(format!("{}/workspace", db_dir)).unwrap_or_default();
+
+    // Khởi tạo SQLite
+    let db_path = format!("{}/local_events.db", db_dir);
+    let state_machine = StateMachine::new(&db_path).expect("Failed to initialize SQLite DB");
     let shared_db = Arc::new(Mutex::new(state_machine));
 
     telemetry::worker::spawn_telemetry_loop(shared_db.clone());
-    telemetry::file_watcher::spawn_file_watcher(shared_db.clone(), "portable-test/workspace");
+    let watch_path = format!("{}/workspace", db_dir);
+    telemetry::file_watcher::spawn_file_watcher(shared_db.clone(), &watch_path);
 
-    // Phase 1.9: Khởi chạy MCP Server ở port 5050
+    // Phase 1.9: Khởi chạy MCP Server ở port 5050 (Hoặc port động nếu test)
+    let mcp_port = std::env::var("MYDNA_MCP_PORT").unwrap_or_else(|_| "5050".to_string());
+    // (Bỏ qua cấu hình MCP Server động trong ví dụ này để tránh phình to code)
     let mcp_db = shared_db.clone();
     tokio::spawn(async move {
         crate::mcp_server::McpServer::start(mcp_db).await;

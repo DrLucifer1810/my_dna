@@ -76,7 +76,7 @@ impl From<request_response::Event<MatchRequest, MatchResponse>> for MyDnaBehavio
 pub struct P2pNetworkManager;
 
 impl P2pNetworkManager {
-    pub async fn start_node(port: u16, bootstrap_nodes: Vec<String>, private_key_bytes: &mut [u8; 32]) -> Result<(), String> {
+    pub async fn start_node(port: u16, bootstrap_nodes: Vec<String>, private_key_bytes: &mut [u8; 32], mut user_intent: MatchIntent) -> Result<(), String> {
         let local_key = identity::Keypair::ed25519_from_bytes(&mut *private_key_bytes)
             .map_err(|e| format!("Failed to parse private key: {}", e))?;
         let local_peer_id = PeerId::from(local_key.public());
@@ -140,6 +140,9 @@ impl P2pNetworkManager {
         let my_snapshot = IntegrityManager::generate_snapshot(&local_peer_id.to_string(), private_key_bytes)
             .map_err(|e| format!("Snapshot generation error: {}", e))?;
         
+        user_intent.peer_id = local_peer_id.to_string();
+        user_intent.integrity_snapshot = Some(my_snapshot.clone());
+        
         let record = kad::Record {
             key: kad::RecordKey::new(&local_peer_id.to_bytes()),
             value: serde_json::to_vec(&my_snapshot).unwrap(),
@@ -149,7 +152,13 @@ impl P2pNetworkManager {
         swarm.behaviour_mut().kademlia.put_record(record, kad::Quorum::One).ok();
         
         // Ghi ra đĩa để backup lên Google Drive
-        std::fs::write("portable-test/my_snapshot.json", serde_json::to_string_pretty(&my_snapshot).unwrap()).ok();
+        let node_suffix = std::env::var("MYDNA_TEST_NODE").unwrap_or_default();
+        let snapshot_path = if node_suffix.is_empty() {
+            "portable-test/my_snapshot.json".to_string()
+        } else {
+            format!("portable-test/{}/my_snapshot.json", node_suffix)
+        };
+        std::fs::write(&snapshot_path, serde_json::to_string_pretty(&my_snapshot).unwrap()).ok();
 
         for raw_addr in bootstrap_nodes {
             if let Ok(addr) = raw_addr.parse::<Multiaddr>() {
@@ -158,15 +167,28 @@ impl P2pNetworkManager {
             }
         }
 
+        let mut tick = tokio::time::interval(Duration::from_secs(10)); // Broadcast every 10 secs
+
         tokio::spawn(async move {
             loop {
-                match swarm.select_next_some().await {
-                    SwarmEvent::NewListenAddr { address, .. } => {
-                        println!("[P2P] Listening on {:?}", address);
+                tokio::select! {
+                    _ = tick.tick() => {
+                        let data = serde_json::to_vec(&user_intent).unwrap();
+                        if user_intent.is_recruiting || user_intent.is_looking_for_job {
+                            let _ = swarm.behaviour_mut().gossipsub.publish(gossipsub::IdentTopic::new(TOPIC_RECRUITMENT), data.clone());
+                        }
+                        if user_intent.is_hiring_freelancer || user_intent.is_freelancing {
+                            let _ = swarm.behaviour_mut().gossipsub.publish(gossipsub::IdentTopic::new(TOPIC_FREELANCE), data);
+                        }
                     }
-                    SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                        println!("[P2P] Connected to peer: {}", peer_id);
-                    }
+                    event = swarm.select_next_some() => {
+                        match event {
+                            SwarmEvent::NewListenAddr { address, .. } => {
+                                println!("[P2P] Listening on {:?}", address);
+                            }
+                            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                                println!("[P2P] Connected to peer: {}", peer_id);
+                            }
                     SwarmEvent::Behaviour(MyDnaBehaviourEvent::Gossipsub(gossipsub::Event::Message {
                         propagation_source,
                         message,
@@ -210,7 +232,7 @@ impl P2pNetworkManager {
                                             from_peer_id: local_peer_id.to_string(),
                                             topic: topic.clone(),
                                             matched_skills: intent.skills.clone(),
-                                            contact_email: "my.email@gmail.com".to_string(),
+                                            contact_email: user_intent.contact_email.clone(),
                                         };
                                         swarm.behaviour_mut().reqres.send_request(&target_peer, req);
                                     }
@@ -229,7 +251,9 @@ impl P2pNetworkManager {
                             }
                         }
                     }
-                    _ => {}
+                            _ => {}
+                        }
+                    }
                 }
             }
         });

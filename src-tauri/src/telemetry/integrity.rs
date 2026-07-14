@@ -17,7 +17,12 @@ pub struct IntegrityManager;
 impl IntegrityManager {
     /// Tính mã băm (Hash) của file local_events.db (Giả lập)
     fn hash_local_database() -> String {
-        let db_path = "portable-test/local_events.db";
+        let node_suffix = std::env::var("MYDNA_TEST_NODE").unwrap_or_default();
+        let db_path = if node_suffix.is_empty() {
+            "portable-test/local_events.db".to_string()
+        } else {
+            format!("portable-test/{}/local_events.db", node_suffix)
+        };
         let content = std::fs::read(db_path).unwrap_or_else(|_| b"empty_db".to_vec());
         let mut hasher = Sha256::new();
         hasher.update(&content);

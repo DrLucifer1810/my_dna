@@ -155,8 +155,25 @@ document.addEventListener("DOMContentLoaded", () => {
   const p2pBtn = document.getElementById("start-p2p-btn");
   if(p2pBtn) {
     p2pBtn.addEventListener("click", () => {
+        const intentRecruiting = document.getElementById("intent-recruiting").checked;
+        const intentLookingJob = document.getElementById("intent-looking-job").checked;
+        const intentHiringFreelancer = document.getElementById("intent-hiring-freelancer").checked;
+        const intentFreelancing = document.getElementById("intent-freelancing").checked;
+        const contactEmail = document.getElementById("p2p-contact-email").value.trim();
+
+        if (!contactEmail && (intentRecruiting || intentLookingJob || intentHiringFreelancer || intentFreelancing)) {
+            document.getElementById("p2p-status").innerHTML = `<span style="color:#ef4444;">Vui lòng nhập Email liên hệ để đối tác liên lạc khi Match!</span>`;
+            return;
+        }
+
         document.getElementById("p2p-status").innerText = "Đang khởi động Node P2P...";
-        invoke('start_p2p_network').then((res) => {
+        invoke('start_p2p_network', {
+            intentRecruiting,
+            intentLookingJob,
+            intentHiringFreelancer,
+            intentFreelancing,
+            contactEmail
+        }).then((res) => {
             document.getElementById("p2p-status").innerText = res;
         }).catch(err => {
             document.getElementById("p2p-status").innerHTML = `<span style="color:#ef4444;">Lỗi: ${err}</span>`;

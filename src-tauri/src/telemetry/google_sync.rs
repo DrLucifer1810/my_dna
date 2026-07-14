@@ -48,11 +48,19 @@ impl GoogleSyncManager {
         // 1. Đồng bộ Private Key
         Self::sync_identity_key(&access_token).await?;
 
+        // Hỗ trợ multi-node testing
+        let node_suffix = std::env::var("MYDNA_TEST_NODE").unwrap_or_default();
+        let db_dir = if node_suffix.is_empty() {
+            "portable-test".to_string()
+        } else {
+            format!("portable-test/{}", node_suffix)
+        };
+
         // 2. Đồng bộ Database
-        Self::sync_file_to_drive(&access_token, "local_events.db", "portable-test/local_events.db").await?;
+        Self::sync_file_to_drive(&access_token, "local_events.db", &format!("{}/local_events.db", db_dir)).await?;
 
         // 3. Đồng bộ Snapshot tính toàn vẹn (Cross-Verification)
-        Self::sync_file_to_drive(&access_token, "my_snapshot.json", "portable-test/my_snapshot.json").await?;
+        Self::sync_file_to_drive(&access_token, "my_snapshot.json", &format!("{}/my_snapshot.json", db_dir)).await?;
 
         Ok("Đồng bộ dữ liệu an toàn thành công!".to_string())
     }

@@ -11,3 +11,4 @@ pub mod user_profiler;
 pub mod crypto;
 pub mod google_sync;
 pub mod p2p_network;
+pub mod integrity;

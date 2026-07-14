@@ -49,7 +49,10 @@ impl GoogleSyncManager {
         Self::sync_identity_key(&access_token).await?;
 
         // 2. Đồng bộ Database
-        Self::sync_database(&access_token).await?;
+        Self::sync_file_to_drive(&access_token, "local_events.db", "portable-test/local_events.db").await?;
+
+        // 3. Đồng bộ Snapshot tính toàn vẹn (Cross-Verification)
+        Self::sync_file_to_drive(&access_token, "my_snapshot.json", "portable-test/my_snapshot.json").await?;
 
         Ok("Đồng bộ dữ liệu an toàn thành công!".to_string())
     }
@@ -186,26 +189,25 @@ impl GoogleSyncManager {
     }
 
     /// Backup local_events.db lên appDataFolder
-    async fn sync_database(access_token: &str) -> Result<(), String> {
-        let db_path = "portable-test/local_events.db";
-        if !Path::new(db_path).exists() {
+    /// Backup một file lên appDataFolder
+    async fn sync_file_to_drive(access_token: &str, file_name: &str, file_path: &str) -> Result<(), String> {
+        let path = Path::new(file_path);
+        if !path.exists() {
             return Ok(());
         }
 
-        let db_content = fs::read(db_path).map_err(|e| e.to_string())?;
-
+        let content = fs::read(path).map_err(|e| e.to_string())?;
         let client = Client::new();
-        // Kiểm tra xem đã có chưa
-        let search_url = "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='local_events.db'";
-        let res = client.get(search_url)
+
+        let search_url = format!("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='{}'", file_name);
+        let res = client.get(&search_url)
             .bearer_auth(access_token)
             .send().await.map_err(|e| e.to_string())?;
         
         let file_list: DriveFileList = res.json().await.unwrap_or(DriveFileList { files: None });
 
-        let url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
         let metadata = serde_json::json!({
-            "name": "local_events.db",
+            "name": file_name,
             "parents": ["appDataFolder"]
         });
 
@@ -216,16 +218,17 @@ impl GoogleSyncManager {
                 let patch_url = format!("https://www.googleapis.com/upload/drive/v3/files/{}?uploadType=media", file_id);
                 let _ = client.patch(&patch_url)
                     .bearer_auth(access_token)
-                    .body(db_content)
+                    .body(content)
                     .send().await.map_err(|e| e.to_string())?;
                 return Ok(());
             }
         }
 
         // Upload mới
+        let url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
         let form = reqwest::multipart::Form::new()
             .part("metadata", reqwest::multipart::Part::text(metadata.to_string()).mime_str("application/json").unwrap())
-            .part("file", reqwest::multipart::Part::bytes(db_content).mime_str("application/octet-stream").unwrap());
+            .part("file", reqwest::multipart::Part::bytes(content).mime_str("application/octet-stream").unwrap());
 
         let _ = client.post(url)
             .bearer_auth(access_token)

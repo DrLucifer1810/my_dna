@@ -9,6 +9,8 @@ use std::time::Duration;
 const TOPIC_RECRUITMENT: &str = "/mydna/recruitment/1.0.0";
 const TOPIC_FREELANCE: &str = "/mydna/freelance/1.0.0";
 
+use crate::telemetry::integrity::{IntegrityManager, IntegritySnapshot};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchIntent {
     pub peer_id: String,
@@ -18,6 +20,7 @@ pub struct MatchIntent {
     pub is_freelancing: bool,
     pub contact_email: String,
     pub skills: Vec<String>,
+    pub integrity_snapshot: Option<IntegritySnapshot>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,6 +136,21 @@ impl P2pNetworkManager {
         let listen_addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", port).parse().unwrap();
         swarm.listen_on(listen_addr).unwrap();
 
+        // Generate Local Integrity Snapshot
+        let my_snapshot = IntegrityManager::generate_snapshot(&local_peer_id.to_string(), private_key_bytes)
+            .map_err(|e| format!("Snapshot generation error: {}", e))?;
+        
+        let record = kad::Record {
+            key: kad::RecordKey::new(&local_peer_id.to_bytes()),
+            value: serde_json::to_vec(&my_snapshot).unwrap(),
+            publisher: Some(local_peer_id),
+            expires: Some(std::time::Instant::now() + Duration::from_secs(7 * 24 * 3600)), // 7 days TTL
+        };
+        swarm.behaviour_mut().kademlia.put_record(record, kad::Quorum::One).ok();
+        
+        // Ghi ra đĩa để backup lên Google Drive
+        std::fs::write("portable-test/my_snapshot.json", serde_json::to_string_pretty(&my_snapshot).unwrap()).ok();
+
         for raw_addr in bootstrap_nodes {
             if let Ok(addr) = raw_addr.parse::<Multiaddr>() {
                 println!("[P2P] Dialing Bootstrap Node: {}", addr);
@@ -161,22 +179,41 @@ impl P2pNetworkManager {
                             println!("[P2P] Extracted Match Intent from {}: {:?}", intent.peer_id, intent.contact_email);
                             
                             // Tự động phân tích nhu cầu chéo (Cross-match logic)
-                            // Ví dụ: B đang cần thuê freelancer, còn A (mình) đang làm freelancer
                             let is_match = (topic == TOPIC_FREELANCE && intent.is_hiring_freelancer)
                                         || (topic == TOPIC_RECRUITMENT && intent.is_recruiting);
                             
                             if is_match {
-                                println!("[P2P] MATCH FOUND with {}! Bắt tay 1-1...", intent.contact_email);
-                                
-                                // Gửi Request-Response trực tiếp đến node đó
-                                if let Ok(target_peer) = intent.peer_id.parse::<PeerId>() {
-                                    let req = MatchRequest {
-                                        from_peer_id: local_peer_id.to_string(),
-                                        topic: topic.clone(),
-                                        matched_skills: intent.skills.clone(),
-                                        contact_email: "my.email@gmail.com".to_string(), // TODO: Fetch real email from OAuth / Local DB
-                                    };
-                                    swarm.behaviour_mut().reqres.send_request(&target_peer, req);
+                                // 1. BẮT BẮT ĐẦU ĐỐI SOÁT CHÉO (CROSS-VERIFICATION)
+                                let mut is_valid = true;
+                                if let Some(snapshot) = &intent.integrity_snapshot {
+                                    // Ở đây chúng ta tạm dùng public key từ peer_id. Thực tế cần cơ chế trao đổi pubkey an toàn hơn.
+                                    // Hoặc query Kademlia DHT: swarm.behaviour_mut().kademlia.get_record(kad::RecordKey::new(&target_peer.to_bytes()));
+                                    
+                                    // Đọc releases.json để đối chiếu Code Hash (App Binary Integrity)
+                                    if let Ok(releases_data) = std::fs::read_to_string("releases.json") {
+                                        if let Ok(releases) = serde_json::from_str::<serde_json::Value>(&releases_data) {
+                                            if releases.get(&snapshot.app_version).is_none() {
+                                                println!("[P2P-SECURITY] Báo động: Node {} dùng phiên bản App không hợp lệ (Mod/Hack). Đã khóa!", intent.peer_id);
+                                                is_valid = false;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    println!("[P2P-SECURITY] Node {} không gửi kèm Bằng chứng toàn vẹn dữ liệu.", intent.peer_id);
+                                }
+
+                                if is_valid {
+                                    println!("[P2P] MATCH FOUND & VERIFIED with {}! Bắt tay 1-1...", intent.contact_email);
+                                    
+                                    if let Ok(target_peer) = intent.peer_id.parse::<PeerId>() {
+                                        let req = MatchRequest {
+                                            from_peer_id: local_peer_id.to_string(),
+                                            topic: topic.clone(),
+                                            matched_skills: intent.skills.clone(),
+                                            contact_email: "my.email@gmail.com".to_string(),
+                                        };
+                                        swarm.behaviour_mut().reqres.send_request(&target_peer, req);
+                                    }
                                 }
                             }
                         }

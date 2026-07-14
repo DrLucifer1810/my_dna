@@ -189,13 +189,13 @@ impl P2pNetworkManager {
                                     // Ở đây chúng ta tạm dùng public key từ peer_id. Thực tế cần cơ chế trao đổi pubkey an toàn hơn.
                                     // Hoặc query Kademlia DHT: swarm.behaviour_mut().kademlia.get_record(kad::RecordKey::new(&target_peer.to_bytes()));
                                     
-                                    // Đọc releases.json để đối chiếu Code Hash (App Binary Integrity)
-                                    if let Ok(releases_data) = std::fs::read_to_string("releases.json") {
-                                        if let Ok(releases) = serde_json::from_str::<serde_json::Value>(&releases_data) {
-                                            if releases.get(&snapshot.app_version).is_none() {
-                                                println!("[P2P-SECURITY] Báo động: Node {} dùng phiên bản App không hợp lệ (Mod/Hack). Đã khóa!", intent.peer_id);
-                                                is_valid = false;
-                                            }
+                                    // Hardcode danh sách mã băm chuẩn trực tiếp vào file chạy (.exe) lúc biên dịch
+                                    // Điều này ngăn chặn hacker sửa file releases.json cục bộ để qua mặt hệ thống.
+                                    let releases_data = include_str!("../../releases.json");
+                                    if let Ok(releases) = serde_json::from_str::<serde_json::Value>(releases_data) {
+                                        if releases.get(&snapshot.app_version).is_none() {
+                                            println!("[P2P-SECURITY] Báo động: Node {} dùng phiên bản App không hợp lệ (Mod/Hack). Đã khóa!", intent.peer_id);
+                                            is_valid = false;
                                         }
                                     }
                                 } else {

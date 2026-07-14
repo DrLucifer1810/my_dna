@@ -34,10 +34,27 @@ async fn force_analyze(state: tauri::State<'_, AppState>) -> Result<slm_client::
 }
 
 #[tauri::command]
-async fn login_google() -> Result<String, String> {
-    // Thực tế sẽ gọi tới storage::gdrive::GoogleDriveClient
-    // MVP: giả định đăng nhập thành công và báo trạng thái
-    Ok("Connected securely to Google Drive Workspace".to_string())
+async fn login_google(app: tauri::AppHandle) -> Result<String, String> {
+    // Enterprise Audit Phase 1.4: Loại bỏ text tĩnh, dùng Tauri Webview để xử lý OAuth2
+    let client_id = "YOUR_CLIENT_ID_HERE";
+    let redirect_uri = "http://localhost:8080/oauth2callback"; 
+    let auth_url = format!(
+        "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=token&scope=https://www.googleapis.com/auth/drive.file",
+        client_id, redirect_uri
+    );
+
+    if let Ok(_) = tauri::WebviewWindowBuilder::new(
+        &app,
+        "oauth_window",
+        tauri::WebviewUrl::External(auth_url.parse().unwrap())
+    )
+    .title("Đăng nhập Google Drive")
+    .inner_size(800.0, 600.0)
+    .build() {
+        return Ok("OAuth Webview Opened".to_string());
+    }
+
+    Err("Failed to open OAuth Webview".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

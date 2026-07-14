@@ -1,5 +1,5 @@
 use reqwest::{Client, Error as ReqwestError};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Debug)]
 pub enum DriveError {
@@ -55,19 +55,34 @@ impl GoogleDriveClient {
         Ok(folder.id)
     }
 
-    /// Đồng bộ log sự kiện lên thư mục
+    /// Đồng bộ log sự kiện lên thư mục (Enterprise Audit: Gỡ bỏ mock, dùng multipart chuẩn)
     pub async fn upload_log(&self, folder_id: &str, file_name: &str, content: &str) -> Result<(), DriveError> {
-        // ... Logic upload multipart tới Google Drive API
-        // Áp dụng tính chất Fail-fast:
+        let metadata = serde_json::json!({
+            "name": file_name,
+            "parents": [folder_id],
+            "mimeType": "application/json"
+        });
+
+        let part_metadata = reqwest::multipart::Part::text(metadata.to_string())
+            .mime_str("application/json")
+            .unwrap();
+            
+        let part_file = reqwest::multipart::Part::text(content.to_string())
+            .mime_str("application/json")
+            .unwrap();
+
+        let form = reqwest::multipart::Form::new()
+            .part("metadata", part_metadata)
+            .part("file", part_file);
+
         let res = self.client.post("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart")
             .bearer_auth(&self.access_token)
-            // Trong thực tế, cần multipart form. Ở đây minh họa request.
-            .body(content.to_string())
+            .multipart(form)
             .send()
             .await?;
         
         if !res.status().is_success() {
-            return Err(DriveError::AuthError("Upload failed".into()));
+            return Err(DriveError::AuthError(format!("Upload failed: {}", res.status())));
         }
 
         Ok(())

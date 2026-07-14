@@ -2,7 +2,6 @@ use notify::{Watcher, RecursiveMode, Event, EventKind};
 use std::sync::{Arc, Mutex};
 use std::path::Path;
 use std::fs;
-use std::time::Duration;
 use tokio::task;
 
 use crate::telemetry::state_machine::StateMachine;

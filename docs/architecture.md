@@ -41,3 +41,8 @@ MyDNA hoạt động như một máy chủ ngữ cảnh nội bộ (Context Prov
 *   Tương tác mượt mà qua Tauri WebView.
 *   Cung cấp Biểu đồ màng nhện (Radar Chart) hiển thị năng lực làm việc với AI qua `Chart.js`.
 *   Hiển thị trực quan dữ liệu **Hồ sơ năng lực (DNA Profile)** gồm Seniority, Coding Habits, Tone & Voice lấy trực tiếp từ bảng `user_dna`.
+
+## 7. Anti-Tampering & Network Security (Bảo mật Toàn vẹn)
+*   **Row-level Cryptographic Signature:** Mọi điểm số và DNA được ghi vào Database đều phải ký chữ ký điện tử HMAC-SHA256 bằng Khóa bí mật (Secret Key) được lưu trữ sâu trong **Windows Credential Manager (OS Keyring)**. Tuyệt đối không hardcode khóa trong source code.
+*   **Fail-Fast Integrity Check:** API cung cấp dữ liệu liên tục verify chữ ký lúc Runtime. Nếu phát hiện user dùng tool (như DB Browser) sửa trộm điểm thành "100", hệ thống lập tức ném mã lỗi `-32603 (DATA_TAMPERED)`.
+*   **P2P Cross-Validation (Phase 2 Roadmap):** Để ngăn chặn rủi ro user can thiệp tận cấp độ mã băm hệ thống, ứng dụng sẽ được mở rộng bằng cơ chế Mạng ngang hàng (P2P Network). Hồ sơ DNA của một nút mạng (node) sẽ được gửi đi để đối soát chéo (cross-validated) bởi các máy tính khác trong mạng lưới Enterprise. Nếu băm sai lệch so với phân phối chung, hồ sơ sẽ bị hệ thống đánh dấu "Unverified".

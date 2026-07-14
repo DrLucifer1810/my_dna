@@ -23,8 +23,8 @@ pub struct MatchingProfile {
     pub domain_knowledge: Vec<SkillWeight>,
     pub seniority_level: String,
     pub work_model: String,
-    pub min_salary: u32,
-    pub max_salary: u32,
+    pub min_salary: Option<u32>,
+    pub max_salary: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -34,7 +34,7 @@ pub async fn start_global_stats_sync(
         seniority: profile.seniority_level.clone(),
         work_model: profile.work_model.clone(),
         top_skills,
-        salary_expectation: profile.min_salary,
+        salary_expectation: profile.min_salary.unwrap_or(0),
         signature: "ed25519_dummy_sig".to_string(), // Tương lai tích hợp lấy chữ ký
     };
 

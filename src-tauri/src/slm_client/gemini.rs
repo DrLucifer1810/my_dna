@@ -1,16 +1,8 @@
-use reqwest::{Client, Error as ReqwestError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum AiError {
-    Network(ReqwestError),
     ApiError(String),
-}
-
-impl From<ReqwestError> for AiError {
-    fn from(err: ReqwestError) -> Self {
-        AiError::Network(err)
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -26,27 +18,15 @@ pub struct RadarScore {
     pub quality_reason: Option<String>,
 }
 
-pub struct GeminiClient {
-    client: Client,
-    api_key: String,
-}
+pub struct GeminiClient {}
 
 impl GeminiClient {
-    pub fn new(api_key: String) -> Self {
-        GeminiClient {
-            client: Client::new(),
-            api_key,
-        }
+    pub fn new() -> Self {
+        GeminiClient {}
     }
 
-    /// Nạp dữ liệu thô và yêu cầu Gemini phân tích trả về JSON.
-    /// Tuân thủ Fail-fast, không dùng mock data.
-    pub async fn analyze_timeline(&self, raw_logs: &str) -> Result<RadarScore, AiError> {
-        let endpoint = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={}",
-            self.api_key
-        );
-
+    /// Nạp dữ liệu thô và yêu cầu Gemini phân tích trả về JSON qua Webview Companion.
+    pub async fn analyze_timeline(&self, app: tauri::AppHandle, raw_logs: &str) -> Result<RadarScore, AiError> {
         let prompt = format!(
             r#"You are an Expert AI/Human Interaction Behavior Analyst & Quality Rater. 
 Your task is to analyze an OS Event Timeline log (which includes actual RAW CONTENT of Prompts, AI Outputs, and Final Saved Files).
@@ -80,52 +60,14 @@ Analyze the following OS timeline logs (including Content) and generate the exac
             raw_logs
         );
 
-        let payload = serde_json::json!({
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }]
-        });
+        let result_str = crate::slm_client::gemini_companion::run_gemini_background_prompt(
+            app, prompt, None, None
+        ).await.map_err(|e| AiError::ApiError(e))?;
 
-        let res = self.client.post(&endpoint)
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .send()
-            .await?;
-
-        if !res.status().is_success() {
-            let error_text = res.text().await.unwrap_or_default();
-            return Err(AiError::ApiError(format!("Gemini API failed: {}", error_text)));
-        }
-
-        // Dummy struct để parse Gemini response (Đơn giản hóa cho MVP)
-        #[derive(Deserialize)]
-        struct GeminiResponse {
-            candidates: Vec<Candidate>,
-        }
-        #[derive(Deserialize)]
-        struct Candidate {
-            content: Content,
-        }
-        #[derive(Deserialize)]
-        struct Content {
-            parts: Vec<Part>,
-        }
-        #[derive(Deserialize)]
-        struct Part {
-            text: String,
-        }
-
-        let response_data: GeminiResponse = res.json().await?;
-        if let Some(candidate) = response_data.candidates.first() {
-            if let Some(part) = candidate.content.parts.first() {
-                // Lọc bỏ markdown block nếu có
-                let json_str = part.text.trim().trim_start_matches("```json").trim_end_matches("```").trim();
-                let score: RadarScore = serde_json::from_str(json_str)
-                    .map_err(|e| AiError::ApiError(format!("Failed to parse JSON: {}", e)))?;
-                return Ok(score);
-            }
-        }
-
-        Err(AiError::ApiError("Empty response from Gemini".into()))
+        let json_str = result_str.trim().trim_start_matches("```json").trim_end_matches("```").trim();
+        let score: RadarScore = serde_json::from_str(json_str)
+            .map_err(|e| AiError::ApiError(format!("Failed to parse JSON: {}", e)))?;
+        
+        Ok(score)
     }
 }

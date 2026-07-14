@@ -13,7 +13,7 @@ pub struct AppState {
 }
 
 #[tauri::command]
-async fn force_analyze(state: tauri::State<'_, AppState>) -> Result<slm_client::gemini::RadarScore, String> {
+async fn force_analyze(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<slm_client::gemini::RadarScore, String> {
     // Enterprise-ready: Lấy log thật từ SQLite và gửi cho Gemini
     let raw_logs = {
         let db_lock = state.db.lock().map_err(|_| "Failed to lock DB".to_string())?;
@@ -27,7 +27,7 @@ async fn force_analyze(state: tauri::State<'_, AppState>) -> Result<slm_client::
     // Bảo mật: Lọc hoàn toàn thông tin cá nhân (PIR) khỏi Prompt
     let safe_logs = telemetry::pir::redact_sensitive_data(&raw_logs);
 
-    match state.gemini.analyze_timeline(&safe_logs).await {
+    match state.gemini.analyze_timeline(app, &safe_logs).await {
         Ok(score) => Ok(score),
         Err(e) => Err(format!("AI Analysis Error: {:?}", e)),
     }
@@ -35,54 +35,47 @@ async fn force_analyze(state: tauri::State<'_, AppState>) -> Result<slm_client::
 
 #[tauri::command]
 async fn login_google(app: tauri::AppHandle) -> Result<String, String> {
-    // Enterprise Audit Phase 1.4: Loại bỏ text tĩnh, dùng Tauri Webview để xử lý OAuth2
-    let client_id = "YOUR_CLIENT_ID_HERE";
-    let redirect_uri = "http://localhost:8080/oauth2callback"; 
-    let auth_url = format!(
-        "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=token&scope=https://www.googleapis.com/auth/drive.file",
-        client_id, redirect_uri
-    );
-
-    if let Ok(_) = tauri::WebviewWindowBuilder::new(
-        &app,
-        "oauth_window",
-        tauri::WebviewUrl::External(auth_url.parse().unwrap())
-    )
-    .title("Đăng nhập Google Drive")
-    .inner_size(800.0, 600.0)
-    .build() {
-        return Ok("OAuth Webview Opened".to_string());
-    }
-
-    Err("Failed to open OAuth Webview".to_string())
+    // Gọi trực tiếp hàm login của Webview Companion
+    crate::slm_client::gemini_companion::ensure_gemini_login(app).await?;
+    Ok("OAuth Webview Opened and Session Authenticated".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Khởi tạo SQLite tại portable-test/local_events.db (đảm bảo không xả rác ra ổ C: khi dev)
+    // Khởi tạo SQLite tại portable-test/local_events.db
     let db_path = "portable-test/local_events.db";
-    // Đảm bảo thư mục tồn tại (thường đã tạo sẵn bằng script khởi tạo)
     let state_machine = StateMachine::new(db_path).expect("Failed to initialize SQLite DB");
-    
     let shared_db = Arc::new(Mutex::new(state_machine));
 
-    // Khởi chạy vòng lặp ngầm (Background Worker) 2s/lần
     spawn_telemetry_loop(shared_db.clone());
-
-    // Khởi chạy File Watcher để theo dõi Semantic Diff khi lưu file
     telemetry::file_watcher::spawn_file_watcher(shared_db.clone(), "portable-test/workspace");
 
-    // Khởi tạo Gemini Client (Sử dụng API key từ biến môi trường để an toàn)
-    let api_key = std::env::var("GEMINI_API_KEY").unwrap_or_default();
-    let gemini_client = GeminiClient::new(api_key);
+    let gemini_client = GeminiClient::new();
 
     tauri::Builder::default()
         .manage(AppState {
             db: shared_db,
             gemini: gemini_client,
         })
+        .manage(crate::slm_client::gemini_companion::PendingPrompts::default())
+        .manage(crate::slm_client::gemini_companion::PendingContexts::default())
+        .manage(crate::slm_client::gemini_companion::GeminiLock::default())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![force_analyze, login_google])
+        .invoke_handler(tauri::generate_handler![
+            force_analyze, 
+            login_google,
+            crate::slm_client::gemini_companion::ensure_gemini_login,
+            crate::slm_client::gemini_companion::run_gemini_background_prompt,
+            crate::slm_client::gemini_companion::warm_up_gemini_bg,
+            crate::slm_client::gemini_companion::get_gemini_debug_log,
+            crate::slm_client::gemini_companion::gemini_has_session,
+            crate::slm_client::gemini_companion::gemini_switch_account,
+            crate::slm_client::gemini_companion::receive_gemini_done,
+            crate::slm_client::gemini_companion::receive_gemini_chunk,
+            crate::slm_client::gemini_companion::receive_gemini_log,
+            crate::slm_client::gemini_companion::receive_gemini_context,
+            crate::slm_client::webview_selectors::update_gemini_selectors
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

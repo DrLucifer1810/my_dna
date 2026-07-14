@@ -34,3 +34,28 @@ pub fn redact_sensitive_data(input: &str) -> String {
 
     redacted
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_redact_sensitive_data() {
+        let input = "Contact me at admin@example.com or use API Key sk-1234567890abcdef. CC: 4111-2222-3333-4444.";
+        let output = redact_sensitive_data(input);
+        
+        // Đảm bảo dữ liệu thật bị che đi
+        assert!(!output.contains("admin@example.com"));
+        assert!(!output.contains("sk-1234567890abcdef"));
+        assert!(!output.contains("4111-2222-3333-4444"));
+        
+        // Đảm bảo chữ thay thế có tồn tại
+        assert!(output.contains("[REDACTED_EMAIL]"));
+        assert!(output.contains("[REDACTED_API_KEY]"));
+        assert!(output.contains("[REDACTED_CREDIT_CARD]"));
+        
+        // Đảm bảo ngữ cảnh bình thường không bị ảnh hưởng
+        assert!(output.contains("Contact me at"));
+        assert!(output.contains("or use API Key"));
+    }
+}

@@ -91,3 +91,23 @@ impl StateMachine {
         Ok(logs.join("\n"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_state_machine_in_memory() {
+        // Dùng SQLite in-memory để test không chạm đĩa
+        let sm = StateMachine::new(":memory:").expect("Failed to init in-memory DB");
+        
+        sm.log_window_change("MySecretApp", 1234).unwrap();
+        sm.log_clipboard_event("clip_123", "Pasted Code 100%").unwrap();
+        sm.log_file_saved("C:\\path\\code.rs", "fn main() {}").unwrap();
+        
+        let logs = sm.get_recent_logs().unwrap();
+        assert!(logs.contains("MySecretApp"));
+        assert!(logs.contains("Pasted Code 100%"));
+        assert!(logs.contains("fn main() {}"));
+    }
+}

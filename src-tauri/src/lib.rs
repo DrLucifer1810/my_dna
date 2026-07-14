@@ -49,6 +49,9 @@ pub fn run() {
     // Khởi chạy vòng lặp ngầm (Background Worker) 2s/lần
     spawn_telemetry_loop(shared_db.clone());
 
+    // Khởi chạy File Watcher để theo dõi Semantic Diff khi lưu file
+    telemetry::file_watcher::spawn_file_watcher(shared_db.clone(), "portable-test/workspace");
+
     // Khởi tạo Gemini Client (Sử dụng API key từ biến môi trường để an toàn)
     let api_key = std::env::var("GEMINI_API_KEY").unwrap_or_default();
     let gemini_client = GeminiClient::new(api_key);

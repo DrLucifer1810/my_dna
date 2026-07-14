@@ -22,12 +22,15 @@ pub fn generate_lineage_id(content: &str) -> String {
 }
 
 pub fn check_clipboard() -> Option<ClipboardEvent> {
-    if let Some(content) = get_clipboard_text() {
-        if !content.is_empty() {
-            let lineage_id = generate_lineage_id(&content);
+    if let Ok(text) = clipboard_win::get_clipboard_string() {
+        if !text.is_empty() {
+            let mut hasher = DefaultHasher::new();
+            text.hash(&mut hasher);
+            let lineage_id = format!("{:x}", hasher.finish());
+            
             return Some(ClipboardEvent {
                 lineage_id,
-                content,
+                content: text,
             });
         }
     }

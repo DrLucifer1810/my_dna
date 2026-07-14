@@ -14,12 +14,13 @@ Kiến trúc truy vết được thiết kế ở cấp độ hệ điều hành
 *   **State Machine (`state_machine.rs`)**: 
     Quản lý trạng thái và ghi log vào cơ sở dữ liệu nội bộ SQLite (thông qua `rusqlite`). Cơ sở dữ liệu được cấu hình tại thư mục `portable-test/local_events.db` (git ignored) nhằm bảo vệ không gian source code.
 
-## 2. Data Synthesizer (Gemini AI API)
-Xử lý dữ liệu không thông qua mock data mà kết nối trực tiếp đến **Google Gemini API** (`gemini.rs`):
-*   Sử dụng thư viện `reqwest` gửi HTTP Request.
-*   Nạp đầu vào là chuỗi sự kiện thô (Raw Timeline Logs).
-*   Gemini phân tích và trả về cấu trúc dữ liệu JSON biểu diễn **Biểu đồ Radar 6 Chiều** (D1-D6).
-*   **Cơ chế Fail-Fast**: Nếu lỗi mạng, API Key không hợp lệ hoặc model trả về sai cấu trúc, hệ thống lập tức Raise Error để báo cáo, không bao giờ dùng `[0,0,0,0,0,0]` cứng trong backend để lấp liếm lỗi kết nối.
+## 2. Dynamic Data Synthesizer (Gemini AI API)
+Hệ thống kết nối trực tiếp đến **Google Gemini API** (`gemini.rs`) đóng vai trò là một Dynamic Router & Quality Rater (Đánh giá chất lượng chuyên sâu):
+*   Nạp đầu vào là chuỗi sự kiện thô (bao gồm RAW CONTENT thực tế của người dùng: Prompt, văn bản copy từ AI, văn bản cuối cùng được lưu).
+*   **Phân loại Task (Task Categorization):** Gemini tự nhận diện người dùng đang Lập trình (Code), Viết Email, hay Lập kế hoạch.
+*   **Semantic Diff (D3):** LLM trực tiếp đối chiếu đoạn text copy từ AI và đoạn text cuối cùng lưu vào file để đo lường tỷ lệ tùy biến của người dùng.
+*   **Quality Assessment:** Đánh giá chất lượng văn bản cuối cùng dựa trên tiêu chí chuyên ngành (Ví dụ: Email có đủ lịch sự? Code có tối ưu?).
+*   Gemini trả về cấu trúc dữ liệu JSON biểu diễn **Biểu đồ Radar 6 Chiều** (D1-D6), kèm theo `task_category` và `final_quality_score`.
 
 ## 3. Storage & Cloud Sync (Google Drive)
 Mô-đun `gdrive.rs` phụ trách tương tác với Google Drive API (OAuth2) sử dụng `reqwest`:

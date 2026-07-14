@@ -28,7 +28,7 @@ pub fn spawn_telemetry_loop(state: Arc<Mutex<StateMachine>>) {
                 if clip.lineage_id != last_clipboard {
                     last_clipboard = clip.lineage_id.clone();
                     if let Ok(state_lock) = state.lock() {
-                        let _ = state_lock.log_clipboard_event(&last_clipboard);
+                        let _ = state_lock.log_clipboard_event(&last_clipboard, &clip.content);
                     }
                 }
             }

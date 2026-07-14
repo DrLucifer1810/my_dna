@@ -23,6 +23,9 @@ impl StateMachine {
             [],
         )?;
 
+        // Phase 1.3: Thêm cột raw_content để lưu trữ nội dung thực tế (Semantic Diff)
+        let _ = conn.execute("ALTER TABLE events ADD COLUMN raw_content TEXT", []);
+
         Ok(StateMachine { conn })
     }
 
@@ -34,31 +37,46 @@ impl StateMachine {
         Ok(())
     }
 
-    pub fn log_clipboard_event(&self, lineage_id: &str) -> Result<()> {
+    pub fn log_clipboard_event(&self, lineage_id: &str, raw_content: &str) -> Result<()> {
         self.conn.execute(
-            "INSERT INTO events (event_type, clipboard_lineage) VALUES (?1, ?2)",
-            ("CLIPBOARD_COPY", lineage_id),
+            "INSERT INTO events (event_type, clipboard_lineage, raw_content) VALUES (?1, ?2, ?3)",
+            ("CLIPBOARD_COPY", lineage_id, raw_content),
         )?;
         Ok(())
     }
 
     pub fn log_focused_text(&self, name: &str, text: &str) -> Result<()> {
         self.conn.execute(
-            "INSERT INTO events (event_type, window_title, focused_text) VALUES (?1, ?2, ?3)",
-            ("FOCUSED_TEXT", name, text),
+            "INSERT INTO events (event_type, window_title, focused_text, raw_content) VALUES (?1, ?2, ?3, ?4)",
+            ("FOCUSED_TEXT", name, text, text), // Lưu text vào raw_content luôn để dễ đọc
+        )?;
+        Ok(())
+    }
+
+    pub fn log_file_saved(&self, file_path: &str, content: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO events (event_type, window_title, raw_content) VALUES (?1, ?2, ?3)",
+            ("FILE_SAVED", file_path, content),
         )?;
         Ok(())
     }
 
     pub fn get_recent_logs(&self) -> Result<String> {
-        let mut stmt = self.conn.prepare("SELECT event_type, window_title, clipboard_lineage, focused_text, timestamp FROM events ORDER BY id DESC LIMIT 50")?;
+        let mut stmt = self.conn.prepare("SELECT event_type, window_title, clipboard_lineage, focused_text, raw_content, timestamp FROM events ORDER BY id DESC LIMIT 50")?;
         let rows = stmt.query_map([], |row| {
             let event_type: String = row.get(0).unwrap_or_default();
             let title: String = row.get(1).unwrap_or_default();
             let clipboard: String = row.get(2).unwrap_or_default();
             let focused: String = row.get(3).unwrap_or_default();
-            let timestamp: String = row.get(4).unwrap_or_default();
-            Ok(format!("[{}] {} | Win: {} | Clip: {} | Focus: {}", timestamp, event_type, title, clipboard, focused))
+            let raw: String = row.get(4).unwrap_or_default();
+            let timestamp: String = row.get(5).unwrap_or_default();
+            
+            // Format output để LLM đọc được Content
+            let mut log = format!("[{}] {} | Win: {} | Clip: {} | Focus: {}", timestamp, event_type, title, clipboard, focused);
+            if !raw.is_empty() {
+                log.push_str(&format!(" | RAW_CONTENT: {}", raw.replace("\n", " ")));
+            }
+            Ok(log)
         })?;
 
         let mut logs = Vec::new();

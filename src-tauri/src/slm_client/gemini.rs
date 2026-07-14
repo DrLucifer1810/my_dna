@@ -45,7 +45,29 @@ impl GeminiClient {
         );
 
         let prompt = format!(
-            "Analyze the following OS timeline and output ONLY a JSON object representing 6-dimension scores (d1_context, d2_interaction, d3_customization, d4_efficiency, d5_security, d6_collaboration) from 0 to 100.\n\nLogs:\n{}",
+            r#"You are an Expert AI/Human Interaction Behavior Analyst. 
+Your task is to analyze an OS Event Timeline log of a user and score their "AI Competency DNA".
+You MUST output ONLY a valid JSON object matching the exact structure below, with integer scores from 0 to 100. Do not include any text outside the JSON.
+
+{{
+    "d1_context": <Score 0-100>,
+    "d2_interaction": <Score 0-100>,
+    "d3_customization": <Score 0-100>,
+    "d4_efficiency": <Score 0-100>,
+    "d5_security": <Score 0-100>,
+    "d6_collaboration": <Score 0-100>
+}}
+
+Evaluation Rubric:
+- d1_context (Context Definition): High score if the user gathers context across multiple windows before pasting/typing into an AI tool.
+- d2_interaction (Interaction Flexibility): High score if the user switches smoothly between different applications (IDE, Browser, AI).
+- d3_customization (Customization): High score if the user edits or focuses on the text (FOCUSED_TEXT events) after copying from an AI tool, rather than blindly pasting.
+- d4_efficiency (Workflow Efficiency): High score if the problem-solving loop (Copy -> AI -> Paste) is logically structured and fast.
+- d5_security (Security & Privacy): Score low if the user copies sensitive-looking strings (like API keys) into public AI windows. Score high if the workflow is safe.
+- d6_collaboration (Collaboration): High score if the final output from AI is pasted into communication/team apps.
+
+Analyze the following OS timeline logs and generate the exact JSON scores:
+{}"#,
             raw_logs
         );
 

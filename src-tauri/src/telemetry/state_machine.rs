@@ -51,6 +51,7 @@ impl StateMachine {
                 collaboration INTEGER,
                 ai_efficiency INTEGER,
                 tips TEXT,
+                signature TEXT,
                 FOREIGN KEY(session_id) REFERENCES sessions(id)
             )",
             [],
@@ -62,6 +63,7 @@ impl StateMachine {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 agent_type TEXT NOT NULL,
                 extracted_traits TEXT NOT NULL,
+                signature TEXT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
             [],

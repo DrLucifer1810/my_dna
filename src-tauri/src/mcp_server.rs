@@ -41,12 +41,17 @@ async fn get_user_dna(state: Arc<Mutex<StateMachine>>) -> Json<Value> {
     // Fetch latest DNA from each agent
     let fetch_latest = |agent_type: &str| -> Value {
         if let Ok(mut stmt) = db_lock.conn.prepare(
-            "SELECT extracted_traits FROM user_dna WHERE agent_type = ?1 ORDER BY timestamp DESC LIMIT 1"
+            "SELECT extracted_traits, signature FROM user_dna WHERE agent_type = ?1 ORDER BY timestamp DESC LIMIT 1"
         ) {
             if let Ok(mut rows) = stmt.query([agent_type]) {
                 if let Ok(Some(row)) = rows.next() {
                     let traits_str: String = row.get(0).unwrap_or_default();
-                    return serde_json::from_str(&traits_str).unwrap_or(json!({}));
+                    let signature: String = row.get(1).unwrap_or_default();
+                    if crate::telemetry::crypto::verify_signature(&traits_str, &signature) {
+                        return serde_json::from_str(&traits_str).unwrap_or(json!({}));
+                    } else {
+                        return json!({"error": "DATA_TAMPERED"});
+                    }
                 }
             }
         }
@@ -56,6 +61,16 @@ async fn get_user_dna(state: Arc<Mutex<StateMachine>>) -> Json<Value> {
     let code_dna = fetch_latest("CodeAnalyzer");
     let comm_dna = fetch_latest("CommunicationAnalyzer");
     let career_dna = fetch_latest("CareerDiagnostic");
+
+    if code_dna.get("error").is_some() || comm_dna.get("error").is_some() || career_dna.get("error").is_some() {
+        return Json(json!({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32603,
+                "message": "DATA_TAMPERED: The user DNA profile has been illegally modified."
+            }
+        }));
+    }
 
     let mcp_response = json!({
         "jsonrpc": "2.0",

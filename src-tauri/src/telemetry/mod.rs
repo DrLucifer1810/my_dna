@@ -8,3 +8,4 @@ pub mod pir;
 pub mod sessionizer;
 pub mod evaluation_core;
 pub mod user_profiler;
+pub mod crypto;

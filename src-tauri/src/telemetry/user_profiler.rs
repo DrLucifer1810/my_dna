@@ -114,10 +114,12 @@ impl MultiAgentProfiler {
 
     /// Lưu kết quả JSON của Agent vào bảng user_dna
     pub fn save_dna(state: Arc<Mutex<StateMachine>>, agent_name: &str, traits_json: &str) -> std::result::Result<(), String> {
+        let signature = crate::telemetry::crypto::sign_data(traits_json)?;
+        
         let db_lock = state.lock().map_err(|_| "Failed to lock mutex".to_string())?;
         db_lock.conn.execute(
-            "INSERT INTO user_dna (agent_type, extracted_traits) VALUES (?1, ?2)",
-            (agent_name, traits_json),
+            "INSERT INTO user_dna (agent_type, extracted_traits, signature) VALUES (?1, ?2, ?3)",
+            (agent_name, traits_json, signature),
         ).map_err(|e| e.to_string())?;
         Ok(())
     }

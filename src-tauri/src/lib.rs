@@ -47,12 +47,18 @@ async fn get_dna_profile(state: tauri::State<'_, AppState>) -> Result<serde_json
     
     let fetch_latest = |agent_type: &str| -> serde_json::Value {
         if let Ok(mut stmt) = db_lock.conn.prepare(
-            "SELECT extracted_traits FROM user_dna WHERE agent_type = ?1 ORDER BY timestamp DESC LIMIT 1"
+            "SELECT extracted_traits, signature FROM user_dna WHERE agent_type = ?1 ORDER BY timestamp DESC LIMIT 1"
         ) {
             if let Ok(mut rows) = stmt.query([agent_type]) {
                 if let Ok(Some(row)) = rows.next() {
                     let traits_str: String = row.get(0).unwrap_or_default();
-                    return serde_json::from_str(&traits_str).unwrap_or(serde_json::json!({}));
+                    let signature: String = row.get(1).unwrap_or_default();
+                    
+                    if crate::telemetry::crypto::verify_signature(&traits_str, &signature) {
+                        return serde_json::from_str(&traits_str).unwrap_or(serde_json::json!({}));
+                    } else {
+                        return serde_json::json!({"error": "DATA_TAMPERED"});
+                    }
                 }
             }
         }
@@ -62,6 +68,12 @@ async fn get_dna_profile(state: tauri::State<'_, AppState>) -> Result<serde_json
     let code_dna = fetch_latest("CodeAnalyzer");
     let comm_dna = fetch_latest("CommunicationAnalyzer");
     let career_dna = fetch_latest("CareerDiagnostic");
+
+    if code_dna.get("error").and_then(|v| v.as_str()) == Some("DATA_TAMPERED") ||
+       comm_dna.get("error").and_then(|v| v.as_str()) == Some("DATA_TAMPERED") ||
+       career_dna.get("error").and_then(|v| v.as_str()) == Some("DATA_TAMPERED") {
+        return Err("DATA_TAMPERED: Tệp hồ sơ DNA của bạn đã bị can thiệp trái phép. Hệ thống từ chối truy cập.".to_string());
+    }
 
     // Nếu không có dữ liệu nào, báo lỗi
     if code_dna.as_object().unwrap_or(&serde_json::Map::new()).is_empty() && 

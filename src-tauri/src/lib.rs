@@ -137,7 +137,7 @@ async fn login_and_sync_google_drive(app: tauri::AppHandle) -> Result<String, St
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Đảm bảo thư mục tồn tại trước khi mở DB hoặc khởi tạo file watcher (Sửa lỗi Crash do thiếu Folder)
-    std::fs::create_dir_all("portable-test/workspace").unwrap_or_default();
+    std::fs::create_dir_all("portable-test/system-logs").unwrap_or_default();
 
     // Khởi tạo SQLite tại portable-test/local_events.db
     let db_path = "portable-test/local_events.db";

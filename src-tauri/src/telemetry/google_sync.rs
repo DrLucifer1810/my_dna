@@ -33,11 +33,9 @@ pub struct GoogleSyncManager;
 impl GoogleSyncManager {
     /// Bắt đầu quy trình Đăng nhập & Đồng bộ
     pub async fn login_and_sync(app: tauri::AppHandle) -> Result<String, String> {
-        // FAIL-FAST: Tuyệt đối không hardcode, bắt buộc phải có biến môi trường
-        let client_id = env::var("MYDNA_GOOGLE_CLIENT_ID")
-            .map_err(|_| "Hệ thống chưa được cấu hình. Thiếu biến môi trường MYDNA_GOOGLE_CLIENT_ID.".to_string())?;
-        let client_secret = env::var("MYDNA_GOOGLE_CLIENT_SECRET")
-            .map_err(|_| "Hệ thống chưa được cấu hình. Thiếu biến môi trường MYDNA_GOOGLE_CLIENT_SECRET.".to_string())?;
+        // Nhúng (Bake) khóa trực tiếp vào file nhị phân lúc biên dịch (Compile-time)
+        let client_id = env!("MYDNA_GOOGLE_CLIENT_ID").to_string();
+        let client_secret = env!("MYDNA_GOOGLE_CLIENT_SECRET").to_string();
 
         let access_token = match Self::get_access_token_from_refresh(&client_id, &client_secret).await {
             Ok(token) => token,

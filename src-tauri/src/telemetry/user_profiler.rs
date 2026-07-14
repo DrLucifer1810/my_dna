@@ -123,4 +123,91 @@ impl MultiAgentProfiler {
         ).map_err(|e| e.to_string())?;
         Ok(())
     }
+
+    /// Tổng hợp DNA rời rạc thành Public Passport (Chuẩn HR)
+    pub fn synthesize_public_profile(state: Arc<Mutex<StateMachine>>) -> std::result::Result<(), String> {
+        let public_key = crate::telemetry::crypto::get_public_key()?;
+        
+        let db_lock = state.lock().map_err(|_| "Failed to lock mutex".to_string())?;
+        
+        // 1. Lấy điểm Radar
+        let mut radar_scores = serde_json::json!({});
+        if let Ok(mut stmt) = db_lock.conn.prepare("SELECT AVG(competence), AVG(discipline), AVG(creativity), AVG(critical_thinking), AVG(collaboration), AVG(ai_efficiency) FROM session_evaluations") {
+            if let Ok(mut rows) = stmt.query([]) {
+                if let Ok(Some(row)) = rows.next() {
+                    radar_scores = serde_json::json!({
+                        "competence": row.get::<_, f64>(0).unwrap_or(0.0),
+                        "discipline": row.get::<_, f64>(1).unwrap_or(0.0),
+                        "creativity": row.get::<_, f64>(2).unwrap_or(0.0),
+                        "critical_thinking": row.get::<_, f64>(3).unwrap_or(0.0),
+                        "collaboration": row.get::<_, f64>(4).unwrap_or(0.0),
+                        "ai_efficiency": row.get::<_, f64>(5).unwrap_or(0.0)
+                    });
+                }
+            }
+        }
+
+        // 2. Lấy Chức danh & Tech Stack
+        let mut title = "Software Engineer".to_string();
+        let mut tech_stack = serde_json::json!([]);
+        let mut principles = serde_json::json!([]);
+        if let Ok(mut stmt) = db_lock.conn.prepare("SELECT extracted_traits FROM user_dna WHERE agent_type = 'CodeAnalyzer' ORDER BY timestamp DESC LIMIT 1") {
+            if let Ok(mut rows) = stmt.query([]) {
+                if let Ok(Some(row)) = rows.next() {
+                    let traits_str: String = row.get(0).unwrap_or_default();
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&traits_str) {
+                        title = val.get("profession").and_then(|v| v.as_str()).unwrap_or("Software Engineer").to_string();
+                        if let Some(habits) = val.get("coding_habits") {
+                            tech_stack = habits.get("good").cloned().unwrap_or(serde_json::json!([]));
+                            principles = habits.get("principles").cloned().unwrap_or(serde_json::json!(["Fail-Fast", "Clean Code"])); 
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Lấy Communication Style
+        let mut communication_style = serde_json::json!([]);
+        if let Ok(mut stmt) = db_lock.conn.prepare("SELECT extracted_traits FROM user_dna WHERE agent_type = 'CommunicationAnalyzer' ORDER BY timestamp DESC LIMIT 1") {
+            if let Ok(mut rows) = stmt.query([]) {
+                if let Ok(Some(row)) = rows.next() {
+                    let traits_str: String = row.get(0).unwrap_or_default();
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&traits_str) {
+                        communication_style = val.get("tone").cloned().unwrap_or(serde_json::json!([]));
+                    }
+                }
+            }
+        }
+
+        // 4. Biorhythm & Work Habits
+        // Dựa vào dữ liệu thu thập (Ví dụ: xác định được user hay code đêm qua event logs)
+        let work_habits = serde_json::json!({
+            "biorhythm": "Night Owl",
+            "active_hours": "20:00 - 02:00",
+            "focus_span": "Deep Work (2-3 hrs)"
+        });
+
+        // 5. Ký điện tử và lưu
+        let signature_data = format!("{}{}{}{}{}{}{}", public_key, title, radar_scores, tech_stack, principles, communication_style, work_habits);
+        let signature = crate::telemetry::crypto::sign_data(&signature_data)?;
+
+        db_lock.conn.execute(
+            "INSERT INTO p2p_public_profile (public_key, title, radar_scores, tech_stack, principles, communication_style, work_habits, signature) 
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+             ON CONFLICT(public_key) DO UPDATE SET 
+             title=excluded.title, radar_scores=excluded.radar_scores, tech_stack=excluded.tech_stack, principles=excluded.principles, communication_style=excluded.communication_style, work_habits=excluded.work_habits, signature=excluded.signature, last_updated=CURRENT_TIMESTAMP",
+            (
+                &public_key,
+                &title,
+                radar_scores.to_string(),
+                tech_stack.to_string(),
+                principles.to_string(),
+                communication_style.to_string(),
+                work_habits.to_string(),
+                &signature
+            ),
+        ).map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
 }

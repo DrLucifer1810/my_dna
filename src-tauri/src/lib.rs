@@ -42,6 +42,14 @@ async fn get_evaluation_metrics(state: tauri::State<'_, AppState>) -> Result<ser
 }
 
 #[tauri::command]
+async fn force_profile_diagnostic(state: tauri::State<'_, AppState>) -> std::result::Result<String, String> {
+    // Cập nhật lại Public Profile Passport (Phase 1.13)
+    let _ = crate::telemetry::user_profiler::MultiAgentProfiler::synthesize_public_profile(state.inner().db.clone());
+    
+    get_dna_profile(state).await.map(|v| v.to_string())
+}
+
+#[tauri::command]
 async fn get_dna_profile(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
     let db_lock = state.db.lock().map_err(|_| "Failed to lock database".to_string())?;
     
@@ -154,6 +162,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_evaluation_metrics,
             get_dna_profile,
+            force_profile_diagnostic,
             force_analyze_logs,
             login_google,
             crate::slm_client::gemini_companion::ensure_gemini_login,

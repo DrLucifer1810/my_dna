@@ -2,6 +2,7 @@ use hmac::{Hmac, Mac};
 use hmac::KeyInit;
 use sha2::Sha256;
 use keyring::Entry;
+use ed25519_dalek::SigningKey;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -43,4 +44,28 @@ pub fn verify_signature(data: &str, signature: &str) -> bool {
     } else {
         false
     }
+}
+
+pub fn get_public_key() -> Result<String, String> {
+    let entry = Entry::new("MyDNA_Enterprise_P2P", "SystemCore_Ed25519")
+        .map_err(|e| format!("Failed to access OS Keyring for P2P: {}", e))?;
+
+    let signing_key = match entry.get_password() {
+        Ok(secret_hex) => {
+            let bytes = hex::decode(&secret_hex).unwrap_or(vec![0; 32]);
+            let mut arr = [0u8; 32];
+            let len = std::cmp::min(bytes.len(), 32);
+            arr[..len].copy_from_slice(&bytes[..len]);
+            SigningKey::from_bytes(&arr)
+        },
+        Err(_) => {
+            let key_bytes: [u8; 32] = rand::random();
+            let secret_hex = hex::encode(key_bytes);
+            let _ = entry.set_password(&secret_hex);
+            SigningKey::from_bytes(&key_bytes)
+        }
+    };
+    
+    let verifying_key = signing_key.verifying_key();
+    Ok(hex::encode(verifying_key.to_bytes()))
 }

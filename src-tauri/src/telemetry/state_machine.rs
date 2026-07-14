@@ -69,6 +69,23 @@ impl StateMachine {
             [],
         )?;
 
+        // Phase 1.13: Bảng P2P Public Profile để công khai trên mạng
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS p2p_public_profile (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                public_key TEXT UNIQUE,
+                title TEXT,
+                radar_scores TEXT,
+                tech_stack TEXT,
+                principles TEXT,
+                communication_style TEXT,
+                work_habits TEXT,
+                signature TEXT,
+                last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
         Ok(StateMachine { conn })
     }
 

@@ -38,7 +38,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("login-google").addEventListener("click", () => {
     document.getElementById("status-text").innerText = "Authenticating with Google...";
-    // Gọi Tauri Command để chạy luồng OAuth2
-    // invoke('google_login')
+    invoke('login_google').then((res) => {
+      document.getElementById("status-text").innerText = res;
+    }).catch(console.error);
+  });
+
+  document.getElementById("force-analyze").addEventListener("click", () => {
+    document.getElementById("status-text").innerText = "Analyzing OS timeline... please wait.";
+    invoke('force_analyze').then((score) => {
+      document.getElementById("status-text").innerText = "Analysis Complete!";
+      radarChart.data.datasets[0].data = [
+        score.d1_context,
+        score.d2_interaction,
+        score.d3_customization,
+        score.d4_efficiency,
+        score.d5_security,
+        score.d6_collaboration
+      ];
+      radarChart.update();
+    }).catch((err) => {
+      document.getElementById("status-text").innerText = "Error: " + err;
+      console.error(err);
+    });
   });
 });

@@ -41,4 +41,35 @@ impl StateMachine {
         )?;
         Ok(())
     }
+
+    pub fn log_focused_text(&self, name: &str, text: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO events (event_type, window_title, focused_text) VALUES (?1, ?2, ?3)",
+            ("FOCUSED_TEXT", name, text),
+        )?;
+        Ok(())
+    }
+
+    pub fn get_recent_logs(&self) -> Result<String> {
+        let mut stmt = self.conn.prepare("SELECT event_type, window_title, clipboard_lineage, focused_text, timestamp FROM events ORDER BY id DESC LIMIT 50")?;
+        let rows = stmt.query_map([], |row| {
+            let event_type: String = row.get(0).unwrap_or_default();
+            let title: String = row.get(1).unwrap_or_default();
+            let clipboard: String = row.get(2).unwrap_or_default();
+            let focused: String = row.get(3).unwrap_or_default();
+            let timestamp: String = row.get(4).unwrap_or_default();
+            Ok(format!("[{}] {} | Win: {} | Clip: {} | Focus: {}", timestamp, event_type, title, clipboard, focused))
+        })?;
+
+        let mut logs = Vec::new();
+        for row in rows {
+            if let Ok(log) = row {
+                logs.push(log);
+            }
+        }
+        
+        // Đảo ngược lại để theo đúng trình tự thời gian tăng dần
+        logs.reverse();
+        Ok(logs.join("\n"))
+    }
 }

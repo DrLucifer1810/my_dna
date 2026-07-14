@@ -24,14 +24,14 @@ User's Final Saved Output (Est. {} tokens):
 ---
 Edit Ratio (0.0 means user kept AI output exactly, 1.0 means user rewrote completely): {:.2}
 
-Evaluate the user's interaction based on these Enterprise metrics (score 0-100):
-1. 'competence': Did the user successfully integrate the AI output to solve a problem?
-2. 'discipline': Did the user follow standard practices (e.g., adding comments, error handling) in the final output?
-3. 'creativity': Did the user creatively adapt the AI output beyond a simple copy-paste?
-4. 'critical_thinking': Did the user fix AI hallucinations or logic flaws? (If edit_ratio is high, and final output is better, this is high).
-5. 'collaboration': Does the final output indicate readiness for team sharing (clarity, readability)?
+Evaluate the user's interaction based on these Enterprise metrics (score 0-100), utilizing the Dreyfus Model of Skill Acquisition and Bloom's Taxonomy:
+1. 'competence': (Bloom's Taxonomy) Did the user successfully integrate the AI output to solve a problem? High score if they Applied/Analyzed, low if they merely Remembered/Copied.
+2. 'discipline': (Codecademy Matrix) Did the user follow standard practices (e.g., adding comments, error handling, edge cases) in the final output?
+3. 'creativity': (Dreyfus Model) Did the user act as an Expert/Proficient by creatively adapting the AI output beyond a simple copy-paste?
+4. 'critical_thinking': (Dreyfus Model) Did the user act as a 'Competent' or 'Proficient' engineer by fixing AI hallucinations or logic flaws? (If edit_ratio is high, and final output is better, this is high).
+5. 'collaboration': Does the final output indicate readiness for team sharing (clarity, readability, maintainability)?
 6. 'ai_efficiency': Calculate AI Token Efficiency. If the AI generated {} tokens but the user deleted most of it (high edit ratio), efficiency is LOW (waste of tokens). If the user kept it (low edit ratio) and it solved the problem, efficiency is HIGH.
-7. 'prompt_quality': Guess how good the user's prompt was based on how well the AI output matched the user's final need.
+7. 'prompt_quality': (Bloom's Taxonomy) Guess how good the user's prompt was. A prompt at the 'Evaluate/Create' level gets a higher score than a vague 'Understand' level prompt.
 
 Respond ONLY with a JSON object:
 {{

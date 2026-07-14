@@ -1,4 +1,3 @@
-use rusqlite::Result;
 use std::sync::{Arc, Mutex};
 use std::fs;
 use crate::telemetry::state_machine::StateMachine;
@@ -46,8 +45,8 @@ impl MultiAgentProfiler {
     }
 
     /// Lấy Log tương ứng với Agent
-    pub fn get_logs_for_agent(state: Arc<Mutex<StateMachine>>, agent: &AgentType) -> Result<String> {
-        let db_lock = state.lock().unwrap();
+    pub fn get_logs_for_agent(state: Arc<Mutex<StateMachine>>, agent: &AgentType) -> std::result::Result<String, String> {
+        let db_lock = state.lock().map_err(|_| "Failed to lock database mutex (PoisonError)".to_string())?;
         
         let condition = match agent {
             AgentType::CodeAnalyzer => "(window_title LIKE '%Code%' OR window_title LIKE '%Idea%' OR window_title LIKE '%Cursor%')",
@@ -62,14 +61,14 @@ impl MultiAgentProfiler {
              ORDER BY id DESC LIMIT 500", condition
         );
 
-        let mut stmt = db_lock.conn.prepare(&query)?;
+        let mut stmt = db_lock.conn.prepare(&query).map_err(|e| e.to_string())?;
 
         let rows = stmt.query_map([], |row| {
             let event_type: String = row.get(0)?;
             let window_title: String = row.get(1)?;
             let raw_content: String = row.get(2)?;
             Ok(format!("[{}] {} - Snippet: {:.100}", event_type, window_title, raw_content))
-        })?;
+        }).map_err(|e| e.to_string())?;
 
         let mut logs = Vec::new();
         for r in rows {
@@ -114,12 +113,12 @@ impl MultiAgentProfiler {
     }
 
     /// Lưu kết quả JSON của Agent vào bảng user_dna
-    pub fn save_dna(state: Arc<Mutex<StateMachine>>, agent_name: &str, traits_json: &str) -> Result<()> {
-        let db_lock = state.lock().unwrap();
+    pub fn save_dna(state: Arc<Mutex<StateMachine>>, agent_name: &str, traits_json: &str) -> std::result::Result<(), String> {
+        let db_lock = state.lock().map_err(|_| "Failed to lock mutex".to_string())?;
         db_lock.conn.execute(
             "INSERT INTO user_dna (agent_type, extracted_traits) VALUES (?1, ?2)",
             (agent_name, traits_json),
-        )?;
+        ).map_err(|e| e.to_string())?;
         Ok(())
     }
 }

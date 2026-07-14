@@ -5,7 +5,6 @@ pub mod mcp_server;
 
 use std::sync::{Arc, Mutex};
 use telemetry::state_machine::StateMachine;
-use telemetry::worker::spawn_telemetry_loop;
 use slm_client::gemini::GeminiClient;
 
 pub struct AppState {
@@ -14,42 +13,71 @@ pub struct AppState {
 }
 
 #[tauri::command]
-async fn force_analyze() -> Result<serde_json::Value, String> {
-    // Phase 1.7 & 1.8: Trả về Mock Data cho UI Radar Chart để hoàn thiện Concept
-    // Thực tế sẽ gọi LLM, nhưng hiện tại trả về dữ liệu mẫu chuẩn để chứng minh UI
+async fn get_evaluation_metrics(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let db_lock = state.db.lock().map_err(|_| "Failed to lock database".to_string())?;
+    
+    // Đọc metrics mới nhất từ session_evaluations
+    let mut stmt = db_lock.conn.prepare(
+        "SELECT competence, discipline, creativity, critical_thinking, collaboration, ai_efficiency 
+         FROM session_evaluations 
+         ORDER BY session_id DESC LIMIT 1"
+    ).map_err(|e| e.to_string())?;
+
+    let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+    
+    if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let metrics: Vec<i32> = vec![
+            row.get(0).unwrap_or(0),
+            row.get(1).unwrap_or(0),
+            row.get(2).unwrap_or(0),
+            row.get(3).unwrap_or(0),
+            row.get(4).unwrap_or(0),
+            row.get(5).unwrap_or(0),
+        ];
+        return Ok(serde_json::json!({ "metrics": metrics }));
+    }
+    
+    // Fail-Fast: Nếu không có dữ liệu, báo lỗi không có dữ liệu thay vì trả mock
+    Err("No evaluation data available. Please wait for the background agent to analyze your session.".to_string())
+}
+
+#[tauri::command]
+async fn get_dna_profile(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let db_lock = state.db.lock().map_err(|_| "Failed to lock database".to_string())?;
+    
+    let fetch_latest = |agent_type: &str| -> serde_json::Value {
+        if let Ok(mut stmt) = db_lock.conn.prepare(
+            "SELECT extracted_traits FROM user_dna WHERE agent_type = ?1 ORDER BY timestamp DESC LIMIT 1"
+        ) {
+            if let Ok(mut rows) = stmt.query([agent_type]) {
+                if let Ok(Some(row)) = rows.next() {
+                    let traits_str: String = row.get(0).unwrap_or_default();
+                    return serde_json::from_str(&traits_str).unwrap_or(serde_json::json!({}));
+                }
+            }
+        }
+        serde_json::json!({})
+    };
+
+    let code_dna = fetch_latest("CodeAnalyzer");
+    let comm_dna = fetch_latest("CommunicationAnalyzer");
+    let career_dna = fetch_latest("CareerDiagnostic");
+
+    // Nếu không có dữ liệu nào, báo lỗi
+    if code_dna.as_object().unwrap_or(&serde_json::Map::new()).is_empty() && 
+       career_dna.as_object().unwrap_or(&serde_json::Map::new()).is_empty() {
+        return Err("DNA Profile is still being built. Please use the system longer to gather data.".to_string());
+    }
+
     Ok(serde_json::json!({
-        "metrics": [85, 90, 75, 88, 92, 95] // Competence, Discipline, Creativity, Critical, Collab, AI Eff
-    }))
-}
-
-#[tauri::command]
-async fn get_evaluation_metrics() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "metrics": [85, 90, 75, 88, 92, 95]
-    }))
-}
-
-#[tauri::command]
-async fn get_user_profile() -> Result<String, String> {
-    Ok("Senior Rust Developer. Daily focus: Tokio backend systems & LLM integrations.".to_string())
-}
-
-#[tauri::command]
-async fn force_profile_diagnostic() -> Result<String, String> {
-    Ok("Diagnostic forced. Profile updated: Expert Rust Engineer.".to_string())
-}
-
-#[tauri::command]
-async fn get_dna_profile() -> Result<serde_json::Value, String> {
-    // Phase 1.9: Trả về DNA Mock cho UI Dashboard
-    Ok(serde_json::json!({
-        "profession": "Senior Rust Engineer",
-        "daily_focus": "MCP Server Architecture & Backend",
+        "profession": career_dna["profession"].as_str().unwrap_or("Analyzing..."),
+        "daily_focus": career_dna["daily_focus"].as_str().unwrap_or("Analyzing..."),
         "coding_habits": {
-            "good": ["Uses Result for error handling", "Strict typings"],
-            "bad": ["Sometimes leaves println! logs"]
+            "good": code_dna["good_habits"].clone(),
+            "bad": code_dna["bad_habits"].clone(),
+            "principles": code_dna["principles"].clone()
         },
-        "tone": ["Direct", "Technical", "Professional"]
+        "tone": comm_dna["tone"].clone()
     }))
 }
 
@@ -112,11 +140,9 @@ pub fn run() {
         .manage(crate::slm_client::gemini_companion::GeminiLock::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            force_analyze, 
             get_evaluation_metrics,
-            get_user_profile,
             get_dna_profile,
-            force_profile_diagnostic,
+            force_analyze_logs,
             login_google,
             crate::slm_client::gemini_companion::ensure_gemini_login,
             crate::slm_client::gemini_companion::run_gemini_background_prompt,

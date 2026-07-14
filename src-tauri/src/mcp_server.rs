@@ -8,9 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::telemetry::state_machine::StateMachine;
 use tokio::net::TcpListener;
 
-pub struct McpServer {
-    state: Arc<Mutex<StateMachine>>
-}
+pub struct McpServer;
 
 impl McpServer {
     pub async fn start(state: Arc<Mutex<StateMachine>>) {
@@ -21,13 +19,24 @@ impl McpServer {
             }));
 
         println!("MCP Server starting on http://localhost:5050");
-        let listener = TcpListener::bind("0.0.0.0:5050").await.unwrap();
-        axum::serve(listener, app).await.unwrap();
+        let listener = match TcpListener::bind("0.0.0.0:5050").await {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("MCP Server failed to bind port 5050: {}", e);
+                return;
+            }
+        };
+        if let Err(e) = axum::serve(listener, app).await {
+            eprintln!("MCP Server error: {}", e);
+        }
     }
 }
 
 async fn get_user_dna(state: Arc<Mutex<StateMachine>>) -> Json<Value> {
-    let db_lock = state.lock().unwrap();
+    let db_lock = match state.lock() {
+        Ok(lock) => lock,
+        Err(_) => return Json(json!({"error": "Failed to lock database"}))
+    };
     
     // Fetch latest DNA from each agent
     let fetch_latest = |agent_type: &str| -> Value {

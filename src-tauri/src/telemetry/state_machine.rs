@@ -2,7 +2,7 @@ use rusqlite::{Connection, Result};
 use std::path::Path;
 
 pub struct StateMachine {
-    conn: Connection,
+    pub conn: Connection,
 }
 
 impl StateMachine {
@@ -25,6 +25,36 @@ impl StateMachine {
 
         // Phase 1.3: Thêm cột raw_content để lưu trữ nội dung thực tế (Semantic Diff)
         let _ = conn.execute("ALTER TABLE events ADD COLUMN raw_content TEXT", []);
+
+        // Phase 1.7: Bảng Sessions để gom nhóm sự kiện theo luồng công việc
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                end_time DATETIME,
+                category TEXT,
+                raw_context TEXT
+            )",
+            [],
+        )?;
+
+        // Phase 1.7: Bảng Session Evaluations để lưu điểm đánh giá từ LLM (Chuẩn Enterprise Matrix)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS session_evaluations (
+                session_id INTEGER PRIMARY KEY,
+                prompt_quality INTEGER,
+                edit_ratio REAL,
+                competence INTEGER,
+                discipline INTEGER,
+                creativity INTEGER,
+                critical_thinking INTEGER,
+                collaboration INTEGER,
+                ai_efficiency INTEGER,
+                tips TEXT,
+                FOREIGN KEY(session_id) REFERENCES sessions(id)
+            )",
+            [],
+        )?;
 
         Ok(StateMachine { conn })
     }

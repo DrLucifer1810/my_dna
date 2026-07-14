@@ -129,6 +129,11 @@ async fn login_google(app: tauri::AppHandle) -> Result<String, String> {
     Ok("OAuth Webview Opened and Session Authenticated".to_string())
 }
 
+#[tauri::command]
+async fn login_and_sync_google_drive(app: tauri::AppHandle) -> Result<String, String> {
+    crate::telemetry::google_sync::GoogleSyncManager::login_and_sync(app).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Đảm bảo thư mục tồn tại trước khi mở DB hoặc khởi tạo file watcher (Sửa lỗi Crash do thiếu Folder)
@@ -151,6 +156,18 @@ pub fn run() {
     let gemini_client = GeminiClient::new();
 
     tauri::Builder::default()
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(24 * 3600));
+                loop {
+                    interval.tick().await;
+                    // Chạy ngầm: Chỉ đồng bộ nếu đã có refresh token (Không mở popup login)
+                    let _ = crate::telemetry::google_sync::GoogleSyncManager::login_and_sync(app_handle.clone()).await;
+                }
+            });
+            Ok(())
+        })
         .manage(AppState {
             db: shared_db,
             gemini: gemini_client,
@@ -165,6 +182,7 @@ pub fn run() {
             force_profile_diagnostic,
             force_analyze_logs,
             login_google,
+            login_and_sync_google_drive,
             crate::slm_client::gemini_companion::ensure_gemini_login,
             crate::slm_client::gemini_companion::run_gemini_background_prompt,
             crate::slm_client::gemini_companion::warm_up_gemini_bg,

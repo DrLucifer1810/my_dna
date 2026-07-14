@@ -126,6 +126,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  const btnSync = document.getElementById("sync-google-drive");
+  if(btnSync) {
+    btnSync.addEventListener("click", () => {
+      document.getElementById("settings-status").innerText = "Đang mở luồng Google OAuth2 & Đồng bộ...";
+      invoke('login_and_sync_google_drive').then((res) => {
+        document.getElementById("settings-status").innerText = res;
+      }).catch(err => {
+        document.getElementById("settings-status").innerHTML = `<span style="color:#ef4444;">Lỗi Đồng bộ: ${err}</span>`;
+      });
+    });
+  }
+
   const forceBtn = document.getElementById("force-diagnostic");
   if(forceBtn) {
       forceBtn.addEventListener("click", () => {

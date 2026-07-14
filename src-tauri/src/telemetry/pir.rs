@@ -41,12 +41,12 @@ mod tests {
 
     #[test]
     fn test_redact_sensitive_data() {
-        let input = "Contact me at admin@example.com or use API Key sk-1234567890abcdef. CC: 4111-2222-3333-4444.";
+        let input = "Contact me at admin@example.com or use API Key sk-1234567890abcdef1234567890abcdef1234. CC: 4111-2222-3333-4444.";
         let output = redact_sensitive_data(input);
         
         // Đảm bảo dữ liệu thật bị che đi
         assert!(!output.contains("admin@example.com"));
-        assert!(!output.contains("sk-1234567890abcdef"));
+        assert!(!output.contains("sk-1234567890abcdef1234567890abcdef1234"));
         assert!(!output.contains("4111-2222-3333-4444"));
         
         // Đảm bảo chữ thay thế có tồn tại

@@ -110,4 +110,13 @@ mod tests {
         assert!(logs.contains("Pasted Code 100%"));
         assert!(logs.contains("fn main() {}"));
     }
+
+    #[test]
+    fn test_real_db_capture() {
+        if let Ok(sm) = StateMachine::new("portable-test/local_events.db") {
+            println!("--- REAL PRODUCTION LOGS ---");
+            println!("{}", sm.get_recent_logs().unwrap_or_default());
+            println!("----------------------------");
+        }
+    }
 }

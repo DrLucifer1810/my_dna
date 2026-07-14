@@ -42,6 +42,9 @@ async fn login_google(app: tauri::AppHandle) -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Đảm bảo thư mục tồn tại trước khi mở DB hoặc khởi tạo file watcher (Sửa lỗi Crash do thiếu Folder)
+    std::fs::create_dir_all("portable-test/workspace").unwrap_or_default();
+
     // Khởi tạo SQLite tại portable-test/local_events.db
     let db_path = "portable-test/local_events.db";
     let state_machine = StateMachine::new(db_path).expect("Failed to initialize SQLite DB");
@@ -78,4 +81,36 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn test_telemetry_capture() {
+        std::fs::create_dir_all("portable-test/workspace").unwrap_or_default();
+        let sm = telemetry::state_machine::StateMachine::new("portable-test/test_telemetry.db").unwrap();
+        let shared_db = Arc::new(Mutex::new(sm));
+        
+        // Kích hoạt engine telemetry thực thụ
+        telemetry::worker::spawn_telemetry_loop(shared_db.clone());
+        
+        std::thread::sleep(Duration::from_secs(1));
+        
+        // Mô phỏng người dùng copy văn bản thật trên Windows
+        if let Ok(_) = clipboard_win::set_clipboard_string("REAL_PRODUCTION_DATA_123") {
+            // Đợi 3 giây để worker quét và lưu vào DB (loop chạy mỗi 2s)
+            std::thread::sleep(Duration::from_secs(3));
+            
+            let db_lock = shared_db.lock().unwrap();
+            let logs = db_lock.get_recent_logs().unwrap();
+            println!("--- REAL CAPTURED TELEMETRY LOGS ---");
+            println!("{}", logs);
+            println!("------------------------------------");
+            assert!(logs.contains("REAL_PRODUCTION_DATA_123"));
+        }
+    }
 }

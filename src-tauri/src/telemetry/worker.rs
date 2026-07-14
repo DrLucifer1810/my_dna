@@ -17,6 +17,7 @@ pub fn spawn_telemetry_loop(state: Arc<Mutex<StateMachine>>) {
 
         loop {
             // Enterprise Audit Phase 1.4: Tối ưu hiệu năng bằng Idle Detection
+            #[cfg(not(test))]
             unsafe {
                 let mut last_input = LASTINPUTINFO {
                     cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32,

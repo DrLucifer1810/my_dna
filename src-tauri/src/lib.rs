@@ -141,6 +141,7 @@ async fn start_p2p_network(
     intent_hiring_freelancer: bool,
     intent_freelancing: bool,
     contact_email: String,
+    matching_profile_json: Option<String>,
     state: tauri::State<'_, AppState>
 ) -> Result<String, String> {
     // Port and Bootstrap nodes could be injected via .env for local testing multiple nodes
@@ -212,6 +213,12 @@ async fn start_p2p_network(
         format!("{}, {}", primary_email, contact_email)
     };
 
+    let matching_profile = if let Some(json_str) = matching_profile_json {
+        serde_json::from_str::<crate::telemetry::p2p_network::MatchingProfile>(&json_str).ok()
+    } else {
+        None
+    };
+
     let user_intent = crate::telemetry::p2p_network::MatchIntent {
         peer_id: "".to_string(), // Set later
         is_recruiting: intent_recruiting,
@@ -220,6 +227,7 @@ async fn start_p2p_network(
         is_freelancing: intent_freelancing,
         contact_email: final_email,
         skills,
+        matching_profile,
         integrity_snapshot: None, // Set later
     };
 
@@ -292,6 +300,8 @@ pub fn run() {
             start_p2p_network,
             crate::slm_client::gemini_companion::ensure_gemini_login,
             crate::slm_client::gemini_companion::run_gemini_background_prompt,
+            crate::slm_client::gemini_companion::parse_jd_to_profile,
+            crate::slm_client::gemini_companion::parse_cv_to_profile,
             crate::slm_client::gemini_companion::warm_up_gemini_bg,
             crate::slm_client::gemini_companion::get_gemini_debug_log,
             crate::slm_client::gemini_companion::gemini_has_session,

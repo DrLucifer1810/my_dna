@@ -11,6 +11,22 @@ const TOPIC_FREELANCE: &str = "/mydna/freelance/1.0.0";
 
 use crate::telemetry::integrity::{IntegrityManager, IntegritySnapshot};
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SkillWeight {
+    pub name: String,
+    pub weight: f32, // 0.0 -> 1.0
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MatchingProfile {
+    pub tech_stack: Vec<SkillWeight>,
+    pub domain_knowledge: Vec<SkillWeight>,
+    pub seniority_level: String,
+    pub work_model: String,
+    pub min_salary: u32,
+    pub max_salary: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchIntent {
     pub peer_id: String,
@@ -19,7 +35,8 @@ pub struct MatchIntent {
     pub is_hiring_freelancer: bool,
     pub is_freelancing: bool,
     pub contact_email: String,
-    pub skills: Vec<String>,
+    pub skills: Vec<String>, // Giữ lại cho backward compatibility
+    pub matching_profile: Option<MatchingProfile>, // Cấu trúc trọng số đa chiều mới
     pub integrity_snapshot: Option<IntegritySnapshot>,
 }
 
@@ -201,8 +218,47 @@ impl P2pNetworkManager {
                             println!("[P2P] Extracted Match Intent from {}: {:?}", intent.peer_id, intent.contact_email);
                             
                             // Tự động phân tích nhu cầu chéo (Cross-match logic)
-                            let is_match = (topic == TOPIC_FREELANCE && intent.is_hiring_freelancer)
+                            let mut is_match = (topic == TOPIC_FREELANCE && intent.is_hiring_freelancer)
                                         || (topic == TOPIC_RECRUITMENT && intent.is_recruiting);
+                            
+                            // TÍNH ĐIỂM TRỌNG SỐ ĐA CHIỀU (Advanced Weighted Scoring)
+                            if is_match {
+                                if let (Some(my_prof), Some(peer_prof)) = (&user_intent.matching_profile, &intent.matching_profile) {
+                                    // 1. Lọc cứng (Hard Filters)
+                                    // Nếu mình là Ứng viên (min_salary > 0), đối tác là HR (max_salary > 0)
+                                    if my_prof.min_salary > 0 && peer_prof.max_salary > 0 && my_prof.min_salary > peer_prof.max_salary {
+                                        is_match = false;
+                                    } else if peer_prof.min_salary > 0 && my_prof.max_salary > 0 && peer_prof.min_salary > my_prof.max_salary {
+                                        is_match = false;
+                                    }
+
+                                    if is_match && !my_prof.work_model.is_empty() && !peer_prof.work_model.is_empty() && my_prof.work_model != peer_prof.work_model {
+                                        is_match = false;
+                                    }
+
+                                    // 2. Tính điểm Tech Stack (Dot Product)
+                                    if is_match {
+                                        let mut total_score = 0.0;
+                                        let mut total_weight = 0.0;
+                                        
+                                        for my_skill in &my_prof.tech_stack {
+                                            total_weight += my_skill.weight;
+                                            if let Some(peer_skill) = peer_prof.tech_stack.iter().find(|s| s.name.to_lowercase() == my_skill.name.to_lowercase()) {
+                                                total_score += my_skill.weight * peer_skill.weight;
+                                            }
+                                        }
+                                        
+                                        if total_weight > 0.0 {
+                                            let match_percentage = (total_score / total_weight) * 100.0;
+                                            println!("[P2P] {} vs {}: Tỉ lệ khớp = {:.2}%", user_intent.contact_email, intent.contact_email, match_percentage);
+                                            // Ngưỡng chốt (Threshold): >= 60% mới bắt tay
+                                            if match_percentage < 60.0 {
+                                                is_match = false;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             
                             if is_match {
                                 // 1. BẮT BẮT ĐẦU ĐỐI SOÁT CHÉO (CROSS-VERIFICATION)

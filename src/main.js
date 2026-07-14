@@ -160,6 +160,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const intentHiringFreelancer = document.getElementById("intent-hiring-freelancer").checked;
         const intentFreelancing = document.getElementById("intent-freelancing").checked;
         const contactEmail = document.getElementById("p2p-contact-email").value.trim();
+        const matchingProfileRaw = document.getElementById("matching-profile-data").value;
+        const matchingProfileJson = matchingProfileRaw ? matchingProfileRaw : null;
 
         document.getElementById("p2p-status").innerText = "Đang khởi động Node P2P...";
         invoke('start_p2p_network', {
@@ -167,12 +169,40 @@ document.addEventListener("DOMContentLoaded", () => {
             intentLookingJob,
             intentHiringFreelancer,
             intentFreelancing,
-            contactEmail
-        }).then((res) => {
-            document.getElementById("p2p-status").innerText = res;
-        }).catch(err => {
-            document.getElementById("p2p-status").innerHTML = `<span style="color:#ef4444;">Lỗi: ${err}</span>`;
+            contactEmail,
+            matchingProfileJson
+        }).then((msg) => {
+            document.getElementById("p2p-status").innerHTML = `<span style="color:#10b981;">✅ ${msg}</span>`;
+        }).catch((err) => {
+            document.getElementById("p2p-status").innerHTML = `<span style="color:#ef4444;">❌ Lỗi: ${err}</span>`;
         });
     });
   }
+
+  document.getElementById("parse-ai-btn").addEventListener("click", () => {
+      const text = document.getElementById("ai-context-input").value.trim();
+      if (!text) {
+          alert("Vui lòng nhập nội dung JD hoặc CV!");
+          return;
+      }
+
+      const isRecruiting = document.getElementById("intent-recruiting").checked || document.getElementById("intent-hiring-freelancer").checked;
+      
+      const cmd = isRecruiting ? 'parse_jd_to_profile' : 'parse_cv_to_profile';
+      const argName = isRecruiting ? 'jdText' : 'cvText';
+      const statusEl = document.getElementById("ai-parse-status");
+      
+      statusEl.innerText = "⏳ AI đang phân tích dữ liệu...";
+      
+      const args = {};
+      args[argName] = text;
+      
+      invoke(cmd, args).then((jsonStr) => {
+          document.getElementById("matching-profile-data").value = jsonStr;
+          statusEl.innerHTML = `<span style="color:#10b981;">✅ Đã trích xuất Trọng số thành công!</span>`;
+          console.log("Matching Profile:", JSON.parse(jsonStr));
+      }).catch((err) => {
+          statusEl.innerHTML = `<span style="color:#ef4444;">❌ Lỗi AI: ${err}</span>`;
+      });
+  });
 });

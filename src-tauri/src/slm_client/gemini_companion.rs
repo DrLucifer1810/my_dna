@@ -1037,6 +1037,72 @@ pub async fn run_gemini_background_prompt(
 
 // â”€â”€ Tauri command: get_gemini_debug_log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+// ── Tauri command: parse_jd_to_profile ──────────────────────────────────────────
+// Tự động phân tích Job Description thành JSON MatchingProfile
+#[tauri::command]
+pub async fn parse_jd_to_profile(
+    app: AppHandle,
+    jd_text: String,
+) -> Result<String, String> {
+    let prompt = format!(
+        "Bạn là một chuyên gia nhân sự. Hãy phân tích đoạn Job Description (JD) sau và trả về DUY NHẤT một chuỗi JSON chuẩn có cấu trúc như sau (KHÔNG giải thích, KHÔNG markdown):\n\
+        {{\n\
+            \"tech_stack\": [{{\"name\": \"Rust\", \"weight\": 1.0}}, {{\"name\": \"Tauri\", \"weight\": 0.8}}],\n\
+            \"domain_knowledge\": [{{\"name\": \"Blockchain\", \"weight\": 0.5}}],\n\
+            \"seniority_level\": \"Senior\",\n\
+            \"work_model\": \"Remote\",\n\
+            \"min_salary\": 0,\n\
+            \"max_salary\": 5000\n\
+        }}\n\
+        \n\
+        JD:\n{}",
+        jd_text
+    );
+    // Sử dụng UUID để định danh task_id (giả lập ở đây)
+    let stamp = format!("parse-jd-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+    let html = run_gemini_background_prompt(app, prompt, None, Some(stamp)).await?;
+    
+    // Bóc tách JSON từ HTML
+    if let Some(start) = html.find("{") {
+        if let Some(end) = html.rfind("}") {
+            return Ok(html[start..=end].to_string());
+        }
+    }
+    Err("Không tìm thấy cấu trúc JSON trong phản hồi của Gemini".to_string())
+}
+
+// ── Tauri command: parse_cv_to_profile ──────────────────────────────────────────
+// Tự động phân tích CV hoặc DNA Profile thành JSON MatchingProfile
+#[tauri::command]
+pub async fn parse_cv_to_profile(
+    app: AppHandle,
+    cv_text: String,
+) -> Result<String, String> {
+    let prompt = format!(
+        "Bạn là một AI phân tích năng lực. Hãy phân tích đoạn thông tin ứng viên/CV sau và trả về DUY NHẤT một chuỗi JSON chuẩn có cấu trúc như sau (KHÔNG giải thích, KHÔNG markdown):\n\
+        {{\n\
+            \"tech_stack\": [{{\"name\": \"React\", \"weight\": 1.0}}],\n\
+            \"domain_knowledge\": [{{\"name\": \"FinTech\", \"weight\": 0.8}}],\n\
+            \"seniority_level\": \"Mid\",\n\
+            \"work_model\": \"Remote\",\n\
+            \"min_salary\": 2000,\n\
+            \"max_salary\": 0\n\
+        }}\n\
+        \n\
+        CV/Profile:\n{}",
+        cv_text
+    );
+    let stamp = format!("parse-cv-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+    let html = run_gemini_background_prompt(app, prompt, None, Some(stamp)).await?;
+    
+    if let Some(start) = html.find("{") {
+        if let Some(end) = html.rfind("}") {
+            return Ok(html[start..=end].to_string());
+        }
+    }
+    Err("Không tìm thấy cấu trúc JSON trong phản hồi của Gemini".to_string())
+}
+
 // -- Tauri command: receive_gemini_chunk
 // Called by MutationObserver JS when streaming partial text is detected.
 // Emits "gemini-chunk" event → frontend brainStore listener updates placeholder message.

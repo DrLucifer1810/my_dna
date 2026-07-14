@@ -77,7 +77,15 @@
             <input type="checkbox" id="intent-freelancing">
           </div>
           <div class="setting-item">
-            <label>Email bổ sung (Google là mặc định)</label>
+            <label>Nhu cầu của bạn (AI Tự động trích xuất)</label>
+            <textarea id="ai-context-input" rows="4" placeholder="Dán nội dung Job Description (JD) hoặc Hồ sơ/CV của bạn vào đây. AI Gemini sẽ tự bóc tách ra các kỹ năng, yêu cầu và mức lương tương ứng để tạo Hệ Trọng Số Khớp Nối (Matching Profile)..."></textarea>
+            <button id="parse-ai-btn" class="secondary-btn" style="margin-top: 8px;">Dùng AI Sinh Trọng Số Matching</button>
+            <p id="ai-parse-status" style="font-size: 0.85em; color: #666; margin-top: 4px;"></p>
+            <input type="hidden" id="matching-profile-data">
+          </div>
+
+          <div class="intent-options">
+            <label><strong>Phát sóng Nhu cầu (Broadcast):</strong></label>
             <input type="email" id="p2p-contact-email" placeholder="Nhập nếu muốn thêm...">
           </div>
           <button id="start-p2p-btn" class="primary-btn">Khởi động Mạng P2P</button>

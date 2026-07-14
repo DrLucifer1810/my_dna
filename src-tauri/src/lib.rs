@@ -24,7 +24,10 @@ async fn force_analyze(state: tauri::State<'_, AppState>) -> Result<slm_client::
         return Err("Not enough data to analyze".to_string());
     }
 
-    match state.gemini.analyze_timeline(&raw_logs).await {
+    // Bảo mật: Lọc hoàn toàn thông tin cá nhân (PIR) khỏi Prompt
+    let safe_logs = telemetry::pir::redact_sensitive_data(&raw_logs);
+
+    match state.gemini.analyze_timeline(&safe_logs).await {
         Ok(score) => Ok(score),
         Err(e) => Err(format!("AI Analysis Error: {:?}", e)),
     }

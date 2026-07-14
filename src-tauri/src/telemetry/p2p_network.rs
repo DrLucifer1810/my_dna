@@ -77,7 +77,7 @@ pub struct P2pNetworkManager;
 
 impl P2pNetworkManager {
     pub async fn start_node(port: u16, bootstrap_nodes: Vec<String>, private_key_bytes: &mut [u8; 32]) -> Result<(), String> {
-        let local_key = identity::Keypair::ed25519_from_bytes(private_key_bytes)
+        let local_key = identity::Keypair::ed25519_from_bytes(&mut *private_key_bytes)
             .map_err(|e| format!("Failed to parse private key: {}", e))?;
         let local_peer_id = PeerId::from(local_key.public());
         println!("[P2P] Local Node ID: {}", local_peer_id);

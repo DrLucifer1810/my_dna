@@ -3,62 +3,87 @@ const { invoke } = window.__TAURI__.core;
 let radarChart;
 
 document.addEventListener("DOMContentLoaded", () => {
-  const ctx = document.createElement("canvas");
-  document.getElementById("radar-chart").innerHTML = "";
-  document.getElementById("radar-chart").appendChild(ctx);
+  // Tab Switching Logic
+  const tabDashboard = document.getElementById("tab-dashboard");
+  const tabSettings = document.getElementById("tab-settings");
+  const viewDashboard = document.getElementById("view-dashboard");
+  const viewSettings = document.getElementById("view-settings");
 
+  tabDashboard.addEventListener("click", () => {
+    tabDashboard.classList.add("active");
+    tabSettings.classList.remove("active");
+    viewDashboard.style.display = "block";
+    viewSettings.style.display = "none";
+  });
+
+  tabSettings.addEventListener("click", () => {
+    tabSettings.classList.add("active");
+    tabDashboard.classList.remove("active");
+    viewSettings.style.display = "block";
+    viewDashboard.style.display = "none";
+  });
+
+  // Radar Chart Initialization
+  const ctx = document.getElementById("radar-chart").getContext("2d");
   radarChart = new Chart(ctx, {
     type: 'radar',
     data: {
-      labels: ['D1 Context', 'D2 Interaction', 'D3 Customization', 'D4 Efficiency', 'D5 Security', 'D6 Collaboration'],
+      labels: ['Competence', 'Discipline', 'Creativity', 'Critical Thinking', 'Collaboration', 'AI Efficiency'],
       datasets: [{
-        label: 'AI Competency DNA',
-        data: [0, 0, 0, 0, 0, 0], // Dữ liệu sẽ được load từ Rust Backend
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        borderColor: 'rgb(54, 162, 235)',
-        pointBackgroundColor: 'rgb(54, 162, 235)',
+        label: 'Enterprise Capability Matrix',
+        data: [0, 0, 0, 0, 0, 0],
+        backgroundColor: 'rgba(96, 165, 250, 0.2)',
+        borderColor: 'rgba(96, 165, 250, 1)',
+        pointBackgroundColor: 'rgba(96, 165, 250, 1)',
         pointBorderColor: '#fff',
         pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: 'rgb(54, 162, 235)'
+        pointHoverBorderColor: 'rgba(96, 165, 250, 1)'
       }]
     },
     options: {
-      elements: {
-        line: { borderWidth: 3 }
-      },
+      responsive: true,
+      maintainAspectRatio: false,
       scales: {
         r: {
-          angleLines: { display: false },
-          suggestedMin: 0,
-          suggestedMax: 100
+          angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+          grid: { color: 'rgba(255, 255, 255, 0.1)' },
+          pointLabels: { color: '#94a3b8', font: { size: 12 } },
+          ticks: { display: false, min: 0, max: 100 }
         }
-      }
-    },
+      },
+      plugins: { legend: { labels: { color: '#f8fafc' } } }
+    }
   });
 
-  document.getElementById("login-google").addEventListener("click", () => {
-    document.getElementById("status-text").innerText = "Authenticating with Google...";
-    invoke('login_google').then((res) => {
-      document.getElementById("status-text").innerText = res;
+  // Fetch Metrics
+  document.getElementById("refresh-chart").addEventListener("click", () => {
+    invoke('get_evaluation_metrics').then((res) => {
+      // Expecting array: [Competence, Discipline, Creativity, Critical Thinking, Collaboration, AI Efficiency]
+      radarChart.data.datasets[0].data = res.metrics;
+      radarChart.update();
     }).catch(console.error);
   });
 
-  document.getElementById("force-analyze").addEventListener("click", () => {
-    document.getElementById("status-text").innerText = "Analyzing OS timeline... please wait.";
-    invoke('force_analyze').then((score) => {
-      document.getElementById("status-text").innerText = "Analysis Complete!";
-      radarChart.data.datasets[0].data = [
-        score.d1_context,
-        score.d2_interaction,
-        score.d3_customization,
-        score.d4_efficiency,
-        score.d5_security,
-        score.d6_collaboration
-      ];
-      radarChart.update();
-    }).catch((err) => {
-      document.getElementById("status-text").innerText = "Error: " + err;
-      console.error(err);
-    });
+  // Fetch Profile
+  invoke('get_user_profile').then((res) => {
+    if(res) {
+      document.getElementById("user-profile-text").innerText = res;
+    }
+  }).catch(console.error);
+
+  // Settings Toggles
+  document.getElementById("login-google").addEventListener("click", () => {
+    document.getElementById("settings-status").innerText = "Authenticating with Google...";
+    invoke('login_google').then((res) => {
+      document.getElementById("settings-status").innerText = res;
+    }).catch(console.error);
+  });
+
+  document.getElementById("force-diagnostic").addEventListener("click", () => {
+    document.getElementById("settings-status").innerText = "Forcing Profile Diagnostic... Please wait.";
+    invoke('force_profile_diagnostic').then((res) => {
+      document.getElementById("settings-status").innerText = "Diagnostic Complete!";
+      document.getElementById("user-profile-text").innerText = res;
+    }).catch(console.error);
   });
 });

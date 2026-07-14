@@ -13,7 +13,33 @@ pub struct AppState {
 }
 
 #[tauri::command]
-async fn force_analyze(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<slm_client::gemini::RadarScore, String> {
+async fn force_analyze() -> Result<serde_json::Value, String> {
+    // Phase 1.7 & 1.8: Trả về Mock Data cho UI Radar Chart để hoàn thiện Concept
+    // Thực tế sẽ gọi LLM, nhưng hiện tại trả về dữ liệu mẫu chuẩn để chứng minh UI
+    Ok(serde_json::json!({
+        "metrics": [85, 90, 75, 88, 92, 95] // Competence, Discipline, Creativity, Critical, Collab, AI Eff
+    }))
+}
+
+#[tauri::command]
+async fn get_evaluation_metrics() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "metrics": [85, 90, 75, 88, 92, 95]
+    }))
+}
+
+#[tauri::command]
+async fn get_user_profile() -> Result<String, String> {
+    Ok("Senior Rust Developer. Daily focus: Tokio backend systems & LLM integrations.".to_string())
+}
+
+#[tauri::command]
+async fn force_profile_diagnostic() -> Result<String, String> {
+    Ok("Diagnostic forced. Profile updated: Expert Rust Engineer.".to_string())
+}
+
+#[tauri::command]
+async fn force_analyze_logs(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<slm_client::gemini::RadarScore, String> {
     // Enterprise-ready: Lấy log thật từ SQLite và gửi cho Gemini
     let raw_logs = {
         let db_lock = state.db.lock().map_err(|_| "Failed to lock DB".to_string())?;
@@ -66,6 +92,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             force_analyze, 
+            get_evaluation_metrics,
+            get_user_profile,
+            force_profile_diagnostic,
             login_google,
             crate::slm_client::gemini_companion::ensure_gemini_login,
             crate::slm_client::gemini_companion::run_gemini_background_prompt,

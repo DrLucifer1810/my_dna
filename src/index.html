@@ -8,23 +8,61 @@
     <title>MyDNA - Local AI Telemetry</title>
   </head>
   <body>
+    <header class="navbar">
+      <div class="logo">MyDNA Enterprise</div>
+      <nav class="tabs">
+        <button id="tab-dashboard" class="tab-btn active">Dashboard</button>
+        <button id="tab-settings" class="tab-btn">Settings</button>
+      </nav>
+    </header>
+
     <main class="container">
-      <h1>Welcome to MyDNA</h1>
-      <p>Decentralized AI-Coworker Passport Local Agent</p>
-      
-      <div class="card">
-        <h2>Local Telemetry Status</h2>
-        <p id="status-text">Initializing...</p>
-        <button id="login-google">Connect Google Drive</button>
-        <button id="force-analyze">Analyze Now (Gemini AI)</button>
-      </div>
-      
-      <div class="card">
-        <h2>Radar Dashboard (MVP)</h2>
-        <div id="radar-chart">
-          <!-- Biểu đồ Radar sẽ render tại đây -->
-          <p>No data to display yet.</p>
+      <!-- VIEW: DASHBOARD -->
+      <div id="view-dashboard" class="view active-view">
+        <div class="card profile-card">
+          <h2>User Profile Diagnostic</h2>
+          <p id="user-profile-text">Initializing daily diagnostic... waiting for idle time.</p>
         </div>
+        
+        <div class="card chart-card">
+          <h2>Enterprise Capability Matrix</h2>
+          <div class="canvas-container">
+            <canvas id="radar-chart"></canvas>
+          </div>
+          <button id="refresh-chart" class="primary-btn">Refresh Metrics</button>
+        </div>
+      </div>
+
+      <!-- VIEW: SETTINGS -->
+      <div id="view-settings" class="view" style="display: none;">
+        <div class="card">
+          <h2>Telemetry Configuration</h2>
+          <div class="setting-item">
+            <label>OS Window Tracking</label>
+            <input type="checkbox" id="toggle-window" checked>
+          </div>
+          <div class="setting-item">
+            <label>Clipboard Capture</label>
+            <input type="checkbox" id="toggle-clipboard" checked>
+          </div>
+          <div class="setting-item">
+            <label>File Change Watcher</label>
+            <input type="checkbox" id="toggle-file" checked>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>AI Webview Integrations</h2>
+          <button id="login-google" class="secondary-btn">Connect Google Drive (Gemini Auth)</button>
+        </div>
+
+        <div class="card">
+          <h2>Manual Triggers</h2>
+          <p class="hint">Use these to force background jobs immediately.</p>
+          <button id="force-diagnostic" class="danger-btn">Force Profile Diagnostic Now</button>
+        </div>
+        
+        <p id="settings-status"></p>
       </div>
     </main>
 

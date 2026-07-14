@@ -56,6 +56,16 @@ impl StateMachine {
             [],
         )?;
 
+        // Phase 1.8: Bảng User Profiles để lưu kết quả chẩn đoán chuyên môn
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS user_profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_text TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
         Ok(StateMachine { conn })
     }
 

@@ -8,14 +8,17 @@ impl EvaluationCore {
     /// Sinh ra System Prompt để yêu cầu LLM đánh giá chất lượng phiên làm việc của User.
     /// Dựa trên ma trận đánh giá Enterprise: Competence, Discipline, Creativity, Critical Thinking, v.v.
     pub fn build_evaluation_prompt(category: &str, ai_output: &str, final_user_output: &str, edit_ratio: f64) -> String {
+        let ai_token_estimate = ai_output.len() / 4;
+        let final_token_estimate = final_user_output.len() / 4;
+
         format!(
             "You are an Enterprise AI Evaluator. Analyze the user's AI-assisted session.
 Category: {}
-AI Original Output:
+AI Original Output (Est. {} tokens):
 ---
 {}
 ---
-User's Final Saved Output:
+User's Final Saved Output (Est. {} tokens):
 ---
 {}
 ---
@@ -27,7 +30,7 @@ Evaluate the user's interaction based on these Enterprise metrics (score 0-100):
 3. 'creativity': Did the user creatively adapt the AI output beyond a simple copy-paste?
 4. 'critical_thinking': Did the user fix AI hallucinations or logic flaws? (If edit_ratio is high, and final output is better, this is high).
 5. 'collaboration': Does the final output indicate readiness for team sharing (clarity, readability)?
-6. 'ai_efficiency': How efficient was the AI usage? (High if edit_ratio is low but output is high quality).
+6. 'ai_efficiency': Calculate AI Token Efficiency. If the AI generated {} tokens but the user deleted most of it (high edit ratio), efficiency is LOW (waste of tokens). If the user kept it (low edit ratio) and it solved the problem, efficiency is HIGH.
 7. 'prompt_quality': Guess how good the user's prompt was based on how well the AI output matched the user's final need.
 
 Respond ONLY with a JSON object:
@@ -41,7 +44,7 @@ Respond ONLY with a JSON object:
     \"prompt_quality\": 80,
     \"tips\": \"Your AI usage was efficient, but you can improve discipline by adding more docstrings.\"
 }}",
-            category, ai_output, final_user_output, edit_ratio
+            category, ai_token_estimate, ai_output, final_token_estimate, final_user_output, edit_ratio, ai_token_estimate
         )
     }
 

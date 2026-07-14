@@ -6,10 +6,8 @@ use keyring::Entry;
 use std::fs;
 use std::path::Path;
 use tauri_plugin_opener::OpenerExt;
+use std::env;
 
-// TODO: Replace with real Google Cloud Desktop App Client ID in Production
-const CLIENT_ID: &str = "YOUR_CLIENT_ID_MOCK";
-const CLIENT_SECRET: &str = "YOUR_CLIENT_SECRET_MOCK";
 const REDIRECT_URI: &str = "http://127.0.0.1:13337";
 
 #[derive(Deserialize, Debug)]
@@ -35,11 +33,17 @@ pub struct GoogleSyncManager;
 impl GoogleSyncManager {
     /// Bắt đầu quy trình Đăng nhập & Đồng bộ
     pub async fn login_and_sync(app: tauri::AppHandle) -> Result<String, String> {
-        let access_token = match Self::get_access_token_from_refresh().await {
+        // FAIL-FAST: Tuyệt đối không hardcode, bắt buộc phải có biến môi trường
+        let client_id = env::var("MYDNA_GOOGLE_CLIENT_ID")
+            .map_err(|_| "Hệ thống chưa được cấu hình. Thiếu biến môi trường MYDNA_GOOGLE_CLIENT_ID.".to_string())?;
+        let client_secret = env::var("MYDNA_GOOGLE_CLIENT_SECRET")
+            .map_err(|_| "Hệ thống chưa được cấu hình. Thiếu biến môi trường MYDNA_GOOGLE_CLIENT_SECRET.".to_string())?;
+
+        let access_token = match Self::get_access_token_from_refresh(&client_id, &client_secret).await {
             Ok(token) => token,
             Err(_) => {
                 // Nếu chưa có refresh_token, mở luồng OAuth2
-                Self::perform_oauth2(app).await?
+                Self::perform_oauth2(app, &client_id, &client_secret).await?
             }
         };
 
@@ -53,7 +57,7 @@ impl GoogleSyncManager {
     }
 
     /// Lấy Access Token từ Refresh Token đã lưu
-    async fn get_access_token_from_refresh() -> Result<String, String> {
+    async fn get_access_token_from_refresh(client_id: &str, client_secret: &str) -> Result<String, String> {
         let entry = Entry::new("MyDNA_Enterprise_Sync", "GoogleRefreshToken")
             .map_err(|e| e.to_string())?;
         
@@ -61,8 +65,8 @@ impl GoogleSyncManager {
         
         let client = Client::new();
         let params = [
-            ("client_id", CLIENT_ID),
-            ("client_secret", CLIENT_SECRET),
+            ("client_id", client_id),
+            ("client_secret", client_secret),
             ("refresh_token", &refresh_token),
             ("grant_type", "refresh_token"),
         ];
@@ -76,10 +80,10 @@ impl GoogleSyncManager {
     }
 
     /// Mở trình duyệt và lắng nghe Code trả về qua Loopback IP
-    async fn perform_oauth2(app: tauri::AppHandle) -> Result<String, String> {
+    async fn perform_oauth2(app: tauri::AppHandle, client_id: &str, client_secret: &str) -> Result<String, String> {
         let auth_url = format!(
             "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope=https://www.googleapis.com/auth/drive.appdata&access_type=offline&prompt=consent",
-            CLIENT_ID, REDIRECT_URI
+            client_id, REDIRECT_URI
         );
 
         let _ = app.opener().open_url(auth_url.clone(), None::<String>);
@@ -99,8 +103,8 @@ impl GoogleSyncManager {
         // Exchange token
         let client = Client::new();
         let params = [
-            ("client_id", CLIENT_ID),
-            ("client_secret", CLIENT_SECRET),
+            ("client_id", client_id),
+            ("client_secret", client_secret),
             ("code", &code),
             ("redirect_uri", REDIRECT_URI),
             ("grant_type", "authorization_code"),

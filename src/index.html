@@ -27,29 +27,32 @@
         <div id="dashboard" class="tab-content active">
             <h2>Hồ sơ Năng lực (DNA Profile)</h2>
             <div class="radar-container">
-                <canvas id="radarChart"></canvas>
+                <div id="chart-status" class="status-overlay">Đang tải dữ liệu Radar...</div>
+                <canvas id="radarChart" style="display: none;"></canvas>
             </div>
             
             <div class="dna-details">
                 <h3>Phân tích Hành vi & Thói quen</h3>
                 <div id="dna-content" class="dna-grid">
-                    <div class="dna-card">
+                    <div id="dna-status" class="status-overlay">Đang tải hồ sơ DNA...</div>
+                    <div class="dna-card" style="display: none;">
                         <h4>👩‍💻 Seniority & Focus</h4>
                         <p id="dna-profession">Đang phân tích...</p>
                         <p id="dna-focus">...</p>
                     </div>
-                    <div class="dna-card">
+                    <div class="dna-card" style="display: none;">
                         <h4>🔥 Coding Habits</h4>
                         <p><strong>Good:</strong> <span id="dna-good-habits">...</span></p>
                         <p><strong>Bad:</strong> <span id="dna-bad-habits">...</span></p>
                     </div>
-                    <div class="dna-card">
+                    <div class="dna-card" style="display: none;">
                         <h4>💬 Tone & Voice</h4>
                         <p id="dna-tone">...</p>
                     </div>
                 </div>
             </div>
-        </div>  <button id="refresh-chart" class="primary-btn">Refresh Metrics</button>
+        </div>  
+        <button id="refresh-chart" class="primary-btn">Refresh Dashboard</button>
         </div>
       </div>
 

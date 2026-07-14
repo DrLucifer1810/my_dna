@@ -137,3 +137,5 @@ button {
   color: var(--text-muted);
   margin-bottom: 0.5rem;
 }
+
+.status-overlay { text-align: center; color: #94a3b8; padding: 2rem; font-style: italic; grid-column: 1 / -1; }

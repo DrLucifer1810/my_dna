@@ -134,6 +134,36 @@ async fn login_and_sync_google_drive(app: tauri::AppHandle) -> Result<String, St
     crate::telemetry::google_sync::GoogleSyncManager::login_and_sync(app).await
 }
 
+#[tauri::command]
+async fn start_p2p_network() -> Result<String, String> {
+    // Port and Bootstrap nodes could be injected via .env for local testing multiple nodes
+    let port: u16 = std::env::var("MYDNA_P2P_PORT")
+        .unwrap_or_else(|_| "8000".to_string())
+        .parse()
+        .unwrap_or(8000);
+    
+    let bootstrap_str = std::env::var("MYDNA_BOOTSTRAP_NODES").unwrap_or_default();
+    let bootstrap_nodes: Vec<String> = if bootstrap_str.is_empty() {
+        vec![]
+    } else {
+        bootstrap_str.split(',').map(|s| s.to_string()).collect()
+    };
+
+    // Load private key from keychain
+    let key_hex = keyring::Entry::new("MyDNA_Enterprise_P2P", "SystemCore_Ed25519")
+        .map_err(|e| format!("Keychain error: {}", e))?
+        .get_password()
+        .map_err(|_| "Private key not found. Please sync identity first.".to_string())?;
+    
+    let mut key_bytes = [0u8; 32];
+    hex::decode_to_slice(&key_hex, &mut key_bytes).map_err(|_| "Invalid key hex".to_string())?;
+
+    crate::telemetry::p2p_network::P2pNetworkManager::start_node(port, bootstrap_nodes, &mut key_bytes)
+        .await?;
+
+    Ok(format!("P2P Network started on port {}", port))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Đảm bảo thư mục tồn tại trước khi mở DB hoặc khởi tạo file watcher (Sửa lỗi Crash do thiếu Folder)
@@ -183,6 +213,7 @@ pub fn run() {
             force_analyze_logs,
             login_google,
             login_and_sync_google_drive,
+            start_p2p_network,
             crate::slm_client::gemini_companion::ensure_gemini_login,
             crate::slm_client::gemini_companion::run_gemini_background_prompt,
             crate::slm_client::gemini_companion::warm_up_gemini_bg,

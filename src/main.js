@@ -91,22 +91,22 @@ async function loadDNAProfile() {
 document.addEventListener("DOMContentLoaded", () => {
   const tabDashboard = document.getElementById("tab-dashboard");
   const tabSettings = document.getElementById("tab-settings");
+  const tabP2p = document.getElementById("tab-p2p");
   const viewDashboard = document.getElementById("view-dashboard");
   const viewSettings = document.getElementById("view-settings");
+  const viewP2p = document.getElementById("view-p2p");
 
-  tabDashboard.addEventListener("click", () => {
-    tabDashboard.classList.add("active");
-    tabSettings.classList.remove("active");
-    viewDashboard.style.display = "block";
-    viewSettings.style.display = "none";
-  });
+  function switchTab(activeTab, activeView) {
+    [tabDashboard, tabSettings, tabP2p].forEach(t => t.classList.remove("active"));
+    [viewDashboard, viewSettings, viewP2p].forEach(v => v.style.display = "none");
+    
+    activeTab.classList.add("active");
+    activeView.style.display = "block";
+  }
 
-  tabSettings.addEventListener("click", () => {
-    tabSettings.classList.add("active");
-    tabDashboard.classList.remove("active");
-    viewSettings.style.display = "block";
-    viewDashboard.style.display = "none";
-  });
+  tabDashboard.addEventListener("click", () => switchTab(tabDashboard, viewDashboard));
+  tabSettings.addEventListener("click", () => switchTab(tabSettings, viewSettings));
+  tabP2p.addEventListener("click", () => switchTab(tabP2p, viewP2p));
 
   // Initial loads
   renderChart();
@@ -150,5 +150,17 @@ document.addEventListener("DOMContentLoaded", () => {
           document.getElementById("settings-status").innerHTML = `<span style="color:#ef4444;">Error: ${err}</span>`;
         });
       });
+  }
+
+  const p2pBtn = document.getElementById("start-p2p-btn");
+  if(p2pBtn) {
+    p2pBtn.addEventListener("click", () => {
+        document.getElementById("p2p-status").innerText = "Đang khởi động Node P2P...";
+        invoke('start_p2p_network').then((res) => {
+            document.getElementById("p2p-status").innerText = res;
+        }).catch(err => {
+            document.getElementById("p2p-status").innerHTML = `<span style="color:#ef4444;">Lỗi: ${err}</span>`;
+        });
+    });
   }
 });

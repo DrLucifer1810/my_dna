@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyDNA - Local AI Telemetry</title>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Welcome to MyDNA</h1>
+      <p>Decentralized AI-Coworker Passport Local Agent</p>
+      
+      <div class="card">
+        <h2>Local Telemetry Status</h2>
+        <p id="status-text">Initializing...</p>
+        <button id="login-google">Connect Google Drive</button>
+      </div>
+      
+      <div class="card">
+        <h2>Radar Dashboard (MVP)</h2>
+        <div id="radar-chart">
+          <!-- Biểu đồ Radar sẽ render tại đây -->
+          <p>No data to display yet.</p>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

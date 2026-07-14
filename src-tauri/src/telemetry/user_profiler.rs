@@ -1,6 +1,22 @@
 use rusqlite::Result;
 use std::sync::{Arc, Mutex};
+use std::fs;
 use crate::telemetry::state_machine::StateMachine;
+use serde::Deserialize;
+use std::collections::HashMap;
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct PromptConfig {
+    pub slices: HashMap<String, String>,
+    pub agents: HashMap<String, AgentTemplate>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct AgentTemplate {
+    pub role: String,
+    pub goal: String,
+    pub backstory: String,
+}
 
 pub struct MultiAgentProfiler;
 
@@ -10,7 +26,25 @@ pub enum AgentType {
     CareerDiagnostic,
 }
 
+impl AgentType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AgentType::CodeAnalyzer => "CodeAnalyzer",
+            AgentType::CommunicationAnalyzer => "CommunicationAnalyzer",
+            AgentType::CareerDiagnostic => "CareerDiagnostic",
+        }
+    }
+}
+
 impl MultiAgentProfiler {
+    /// Đọc cấu hình Prompt từ YAML động
+    pub fn load_prompts() -> std::result::Result<PromptConfig, String> {
+        let yaml_str = fs::read_to_string("portable-test/prompts.yaml")
+            .map_err(|e| format!("Failed to read prompts.yaml: {}", e))?;
+        serde_yaml::from_str(&yaml_str)
+            .map_err(|e| format!("Failed to parse YAML: {}", e))
+    }
+
     /// Lấy Log tương ứng với Agent
     pub fn get_logs_for_agent(state: Arc<Mutex<StateMachine>>, agent: &AgentType) -> Result<String> {
         let db_lock = state.lock().unwrap();
@@ -18,7 +52,7 @@ impl MultiAgentProfiler {
         let condition = match agent {
             AgentType::CodeAnalyzer => "(window_title LIKE '%Code%' OR window_title LIKE '%Idea%' OR window_title LIKE '%Cursor%')",
             AgentType::CommunicationAnalyzer => "(window_title LIKE '%Mail%' OR window_title LIKE '%Outlook%' OR window_title LIKE '%Chat%')",
-            AgentType::CareerDiagnostic => "1=1", // Lấy tất cả
+            AgentType::CareerDiagnostic => "1=1",
         };
 
         let query = format!(
@@ -48,45 +82,35 @@ impl MultiAgentProfiler {
         Ok(logs.join("\n"))
     }
 
-    /// Trả về System Prompt tương ứng với Từng Agent
+    /// Trả về System Prompt lắp ghép theo phong cách Modular (CrewAI)
     pub fn build_agent_prompt(agent: &AgentType, logs: &str) -> String {
-        match agent {
-            AgentType::CodeAnalyzer => {
-                format!(
-                    "You are a Code Analyzer Agent. Read the developer's logs:
-{}
-Extract their coding DNA:
-1. 'good_habits' (e.g. adding docs, early returns).
-2. 'bad_habits' (e.g. leaving console.log, raw unwraps).
-3. 'principles' (e.g. uses snake_case, prefers functional style).
-Return ONLY a JSON object: {{\"good_habits\": [], \"bad_habits\": [], \"principles\": []}}",
-                    logs
-                )
-            },
-            AgentType::CommunicationAnalyzer => {
-                format!(
-                    "You are a Communication Analyzer Agent. Read the user's chat/email logs:
-{}
-Extract their communication DNA:
-1. 'tone' (e.g. formal, casual, direct, polite).
-2. 'voice' (e.g. uses active voice, short sentences).
-3. 'quirks' (e.g. uses emojis, signs off with 'Cheers').
-Return ONLY a JSON object: {{\"tone\": [], \"voice\": [], \"quirks\": []}}",
-                    logs
-                )
-            },
-            AgentType::CareerDiagnostic => {
-                format!(
-                    "You are a Career Diagnostic Agent. Read the user's daily logs:
-{}
-Extract their career DNA:
-1. 'profession' (e.g. Senior Rust Engineer).
-2. 'daily_focus' (e.g. Debugging Tokio async issues).
-Return ONLY a JSON object: {{\"profession\": \"\", \"daily_focus\": \"\"}}",
-                    logs
-                )
-            }
-        }
+        // Tải cấu hình từ ổ cứng để cho phép Hot-reload
+        let config = match Self::load_prompts() {
+            Ok(c) => c,
+            Err(e) => return format!("System Error loading prompts: {}", e),
+        };
+
+        let agent_key = agent.as_str();
+        let agent_template = match config.agents.get(agent_key) {
+            Some(t) => t,
+            None => return format!("System Error: Agent template {} not found in YAML.", agent_key),
+        };
+
+        let role_playing_slice = config.slices.get("role_playing").unwrap_or(&String::new()).clone();
+        let task_instruction_slice = config.slices.get("task_instruction").unwrap_or(&String::new()).clone();
+
+        // Nội suy biến (Interpolation)
+        let mut final_prompt = role_playing_slice
+            .replace("{role}", &agent_template.role)
+            .replace("{goal}", &agent_template.goal)
+            .replace("{backstory}", &agent_template.backstory);
+
+        let task_part = task_instruction_slice.replace("{logs}", logs);
+
+        final_prompt.push_str("\n");
+        final_prompt.push_str(&task_part);
+
+        final_prompt
     }
 
     /// Lưu kết quả JSON của Agent vào bảng user_dna

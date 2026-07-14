@@ -227,12 +227,27 @@ async fn start_p2p_network(
         is_freelancing: intent_freelancing,
         contact_email: final_email,
         skills,
-        matching_profile,
+        matching_profile: matching_profile.clone(),
         integrity_snapshot: None, // Set later
     };
 
     crate::telemetry::p2p_network::P2pNetworkManager::start_node(port, bootstrap_nodes, &mut key_bytes, user_intent)
         .await?;
+
+    if let Some(profile) = matching_profile.clone() {
+        let intent_str = if intent_recruiting { "Nhà tuyển dụng".to_string() } 
+                         else if intent_freelancing { "Freelancer".to_string() } 
+                         else { "Ứng viên".to_string() };
+                         
+        if let Ok(webhook_url) = std::env::var("MYDNA_GLOBAL_STATS_WEBHOOK") {
+            crate::telemetry::global_stats::start_global_stats_sync(
+                webhook_url,
+                key_hex,
+                intent_str,
+                profile
+            ).await;
+        }
+    }
 
     Ok(format!("P2P Network started on port {}", port))
 }

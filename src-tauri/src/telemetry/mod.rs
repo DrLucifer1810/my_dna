@@ -12,3 +12,4 @@ pub mod crypto;
 pub mod google_sync;
 pub mod p2p_network;
 pub mod integrity;
+pub mod global_stats;

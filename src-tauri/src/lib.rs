@@ -1,6 +1,7 @@
 pub mod telemetry;
 pub mod storage;
 pub mod slm_client;
+pub mod mcp_server;
 
 use std::sync::{Arc, Mutex};
 use telemetry::state_machine::StateMachine;
@@ -36,6 +37,20 @@ async fn get_user_profile() -> Result<String, String> {
 #[tauri::command]
 async fn force_profile_diagnostic() -> Result<String, String> {
     Ok("Diagnostic forced. Profile updated: Expert Rust Engineer.".to_string())
+}
+
+#[tauri::command]
+async fn get_dna_profile() -> Result<serde_json::Value, String> {
+    // Phase 1.9: Trả về DNA Mock cho UI Dashboard
+    Ok(serde_json::json!({
+        "profession": "Senior Rust Engineer",
+        "daily_focus": "MCP Server Architecture & Backend",
+        "coding_habits": {
+            "good": ["Uses Result for error handling", "Strict typings"],
+            "bad": ["Sometimes leaves println! logs"]
+        },
+        "tone": ["Direct", "Technical", "Professional"]
+    }))
 }
 
 #[tauri::command]
@@ -76,8 +91,14 @@ pub fn run() {
     let state_machine = StateMachine::new(db_path).expect("Failed to initialize SQLite DB");
     let shared_db = Arc::new(Mutex::new(state_machine));
 
-    spawn_telemetry_loop(shared_db.clone());
+    telemetry::worker::spawn_telemetry_loop(shared_db.clone());
     telemetry::file_watcher::spawn_file_watcher(shared_db.clone(), "portable-test/workspace");
+
+    // Phase 1.9: Khởi chạy MCP Server ở port 5050
+    let mcp_db = shared_db.clone();
+    tokio::spawn(async move {
+        crate::mcp_server::McpServer::start(mcp_db).await;
+    });
 
     let gemini_client = GeminiClient::new();
 
@@ -94,6 +115,7 @@ pub fn run() {
             force_analyze, 
             get_evaluation_metrics,
             get_user_profile,
+            get_dna_profile,
             force_profile_diagnostic,
             login_google,
             crate::slm_client::gemini_companion::ensure_gemini_login,

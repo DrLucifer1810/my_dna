@@ -56,11 +56,12 @@ impl StateMachine {
             [],
         )?;
 
-        // Phase 1.8: Bảng User Profiles để lưu kết quả chẩn đoán chuyên môn
+        // Phase 1.9: Bảng User DNA để lưu kết quả phân tích từ nhiều Agent khác nhau
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS user_profiles (
+            "CREATE TABLE IF NOT EXISTS user_dna (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                profile_text TEXT NOT NULL,
+                agent_type TEXT NOT NULL,
+                extracted_traits TEXT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
             [],

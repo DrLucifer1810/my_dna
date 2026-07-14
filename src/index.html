@@ -24,12 +24,32 @@
           <p id="user-profile-text">Initializing daily diagnostic... waiting for idle time.</p>
         </div>
         
-        <div class="card chart-card">
-          <h2>Enterprise Capability Matrix</h2>
-          <div class="canvas-container">
-            <canvas id="radar-chart"></canvas>
-          </div>
-          <button id="refresh-chart" class="primary-btn">Refresh Metrics</button>
+        <div id="dashboard" class="tab-content active">
+            <h2>Hồ sơ Năng lực (DNA Profile)</h2>
+            <div class="radar-container">
+                <canvas id="radarChart"></canvas>
+            </div>
+            
+            <div class="dna-details">
+                <h3>Phân tích Hành vi & Thói quen</h3>
+                <div id="dna-content" class="dna-grid">
+                    <div class="dna-card">
+                        <h4>👩‍💻 Seniority & Focus</h4>
+                        <p id="dna-profession">Đang phân tích...</p>
+                        <p id="dna-focus">...</p>
+                    </div>
+                    <div class="dna-card">
+                        <h4>🔥 Coding Habits</h4>
+                        <p><strong>Good:</strong> <span id="dna-good-habits">...</span></p>
+                        <p><strong>Bad:</strong> <span id="dna-bad-habits">...</span></p>
+                    </div>
+                    <div class="dna-card">
+                        <h4>💬 Tone & Voice</h4>
+                        <p id="dna-tone">...</p>
+                    </div>
+                </div>
+            </div>
+        </div>  <button id="refresh-chart" class="primary-btn">Refresh Metrics</button>
         </div>
       </div>
 

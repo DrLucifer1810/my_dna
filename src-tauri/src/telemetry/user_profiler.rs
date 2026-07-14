@@ -2,19 +2,33 @@ use rusqlite::Result;
 use std::sync::{Arc, Mutex};
 use crate::telemetry::state_machine::StateMachine;
 
-pub struct UserProfiler;
+pub struct MultiAgentProfiler;
 
-impl UserProfiler {
-    /// Lấy toàn bộ Log (Window Titles & Focused Text) trong 24h qua.
-    pub fn get_daily_activity_summary(state: Arc<Mutex<StateMachine>>) -> Result<String> {
+pub enum AgentType {
+    CodeAnalyzer,
+    CommunicationAnalyzer,
+    CareerDiagnostic,
+}
+
+impl MultiAgentProfiler {
+    /// Lấy Log tương ứng với Agent
+    pub fn get_logs_for_agent(state: Arc<Mutex<StateMachine>>, agent: &AgentType) -> Result<String> {
         let db_lock = state.lock().unwrap();
-        // Lấy 1000 events gần nhất để phân tích (Đúng theo tinh thần "lấy hết" của User, giới hạn 1000 để tránh sập Memory)
-        let mut stmt = db_lock.conn.prepare(
+        
+        let condition = match agent {
+            AgentType::CodeAnalyzer => "(window_title LIKE '%Code%' OR window_title LIKE '%Idea%' OR window_title LIKE '%Cursor%')",
+            AgentType::CommunicationAnalyzer => "(window_title LIKE '%Mail%' OR window_title LIKE '%Outlook%' OR window_title LIKE '%Chat%')",
+            AgentType::CareerDiagnostic => "1=1", // Lấy tất cả
+        };
+
+        let query = format!(
             "SELECT event_type, window_title, raw_content 
              FROM events 
-             WHERE timestamp >= datetime('now', '-1 day')
-             ORDER BY id DESC LIMIT 1000"
-        )?;
+             WHERE timestamp >= datetime('now', '-1 day') AND {}
+             ORDER BY id DESC LIMIT 500", condition
+        );
+
+        let mut stmt = db_lock.conn.prepare(&query)?;
 
         let rows = stmt.query_map([], |row| {
             let event_type: String = row.get(0)?;
@@ -30,39 +44,57 @@ impl UserProfiler {
             }
         }
         
-        // Đảo ngược để theo đúng trình tự thời gian
         logs.reverse();
         Ok(logs.join("\n"))
     }
 
-    /// Tạo Prompt chẩn đoán chuyên môn gửi cho LLM.
-    pub fn build_diagnostic_prompt(daily_logs: &str) -> String {
-        format!(
-            "You are an HR Tech AI. Analyze the following 24-hour activity log of a user.
-Your task is to profile this user based on their actual daily work.
-
-### Activity Logs:
+    /// Trả về System Prompt tương ứng với Từng Agent
+    pub fn build_agent_prompt(agent: &AgentType, logs: &str) -> String {
+        match agent {
+            AgentType::CodeAnalyzer => {
+                format!(
+                    "You are a Code Analyzer Agent. Read the developer's logs:
 {}
-
-### Required Output:
-Analyze their activities and deduce:
-1. 'profession': Their likely job title (e.g., 'Senior Rust Developer', 'Marketing Manager').
-2. 'seniority': Their experience level (Junior, Mid, Senior, Lead).
-3. 'daily_focus': What they spent the most time doing today.
-4. 'tech_stack': Any tools, frameworks, or languages they used.
-
-Respond ONLY with a short, professional paragraph summarizing their profile. Do not use JSON. Example:
-'This user is a Senior Rust Developer. Their daily focus is on building concurrent backend systems using Tokio and SQLite. They show high proficiency in system architecture.'",
-            daily_logs
-        )
+Extract their coding DNA:
+1. 'good_habits' (e.g. adding docs, early returns).
+2. 'bad_habits' (e.g. leaving console.log, raw unwraps).
+3. 'principles' (e.g. uses snake_case, prefers functional style).
+Return ONLY a JSON object: {{\"good_habits\": [], \"bad_habits\": [], \"principles\": []}}",
+                    logs
+                )
+            },
+            AgentType::CommunicationAnalyzer => {
+                format!(
+                    "You are a Communication Analyzer Agent. Read the user's chat/email logs:
+{}
+Extract their communication DNA:
+1. 'tone' (e.g. formal, casual, direct, polite).
+2. 'voice' (e.g. uses active voice, short sentences).
+3. 'quirks' (e.g. uses emojis, signs off with 'Cheers').
+Return ONLY a JSON object: {{\"tone\": [], \"voice\": [], \"quirks\": []}}",
+                    logs
+                )
+            },
+            AgentType::CareerDiagnostic => {
+                format!(
+                    "You are a Career Diagnostic Agent. Read the user's daily logs:
+{}
+Extract their career DNA:
+1. 'profession' (e.g. Senior Rust Engineer).
+2. 'daily_focus' (e.g. Debugging Tokio async issues).
+Return ONLY a JSON object: {{\"profession\": \"\", \"daily_focus\": \"\"}}",
+                    logs
+                )
+            }
+        }
     }
 
-    /// Lưu kết quả chẩn đoán vào bảng user_profiles
-    pub fn save_profile(state: Arc<Mutex<StateMachine>>, profile_text: &str) -> Result<()> {
+    /// Lưu kết quả JSON của Agent vào bảng user_dna
+    pub fn save_dna(state: Arc<Mutex<StateMachine>>, agent_name: &str, traits_json: &str) -> Result<()> {
         let db_lock = state.lock().unwrap();
         db_lock.conn.execute(
-            "INSERT INTO user_profiles (profile_text) VALUES (?1)",
-            (profile_text,),
+            "INSERT INTO user_dna (agent_type, extracted_traits) VALUES (?1, ?2)",
+            (agent_name, traits_json),
         )?;
         Ok(())
     }

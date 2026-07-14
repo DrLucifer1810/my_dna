@@ -161,11 +161,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const intentFreelancing = document.getElementById("intent-freelancing").checked;
         const contactEmail = document.getElementById("p2p-contact-email").value.trim();
 
-        if (!contactEmail && (intentRecruiting || intentLookingJob || intentHiringFreelancer || intentFreelancing)) {
-            document.getElementById("p2p-status").innerHTML = `<span style="color:#ef4444;">Vui lòng nhập Email liên hệ để đối tác liên lạc khi Match!</span>`;
-            return;
-        }
-
         document.getElementById("p2p-status").innerText = "Đang khởi động Node P2P...";
         invoke('start_p2p_network', {
             intentRecruiting,

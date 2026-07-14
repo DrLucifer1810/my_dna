@@ -45,6 +45,20 @@ impl GoogleSyncManager {
             }
         };
 
+        // Lấy Email từ Google Profile và lưu vào Keyring
+        let client = Client::new();
+        if let Ok(res) = client.get("https://www.googleapis.com/oauth2/v2/userinfo")
+            .bearer_auth(&access_token)
+            .send().await 
+        {
+            if let Ok(json) = res.json::<serde_json::Value>().await {
+                if let Some(email) = json["email"].as_str() {
+                    let entry = keyring::Entry::new("MyDNA_Enterprise_Sync", "GoogleEmail").unwrap();
+                    let _ = entry.set_password(email);
+                }
+            }
+        }
+
         // 1. Đồng bộ Private Key
         Self::sync_identity_key(&access_token).await?;
 
@@ -91,7 +105,7 @@ impl GoogleSyncManager {
     /// Mở trình duyệt và lắng nghe Code trả về qua Loopback IP
     async fn perform_oauth2(app: tauri::AppHandle, client_id: &str, client_secret: &str) -> Result<String, String> {
         let auth_url = format!(
-            "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope=https://www.googleapis.com/auth/drive.appdata&access_type=offline&prompt=consent",
+            "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope=https://www.googleapis.com/auth/drive.appdata%20https://www.googleapis.com/auth/userinfo.email&access_type=offline&prompt=consent",
             client_id, REDIRECT_URI
         );
 

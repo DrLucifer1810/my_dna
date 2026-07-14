@@ -196,13 +196,29 @@ async fn start_p2p_network(
         }
     }
 
+    // Kết hợp Email chính từ Google và Email bổ sung
+    let primary_email = keyring::Entry::new("MyDNA_Enterprise_Sync", "GoogleEmail")
+        .and_then(|e| e.get_password())
+        .unwrap_or_else(|_| "".to_string());
+        
+    let final_email = if primary_email.is_empty() && contact_email.is_empty() {
+        // Fallback for test cluster
+        "test.node@localhost".to_string()
+    } else if primary_email.is_empty() {
+        contact_email
+    } else if contact_email.is_empty() || contact_email == primary_email {
+        primary_email
+    } else {
+        format!("{}, {}", primary_email, contact_email)
+    };
+
     let user_intent = crate::telemetry::p2p_network::MatchIntent {
         peer_id: "".to_string(), // Set later
         is_recruiting: intent_recruiting,
         is_looking_for_job: intent_looking_job,
         is_hiring_freelancer: intent_hiring_freelancer,
         is_freelancing: intent_freelancing,
-        contact_email,
+        contact_email: final_email,
         skills,
         integrity_snapshot: None, // Set later
     };

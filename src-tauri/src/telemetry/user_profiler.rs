@@ -180,12 +180,31 @@ impl MultiAgentProfiler {
         }
 
         // 4. Biorhythm & Work Habits
-        // Dựa vào dữ liệu thu thập (Ví dụ: xác định được user hay code đêm qua event logs)
-        let work_habits = serde_json::json!({
-            "biorhythm": "Night Owl",
-            "active_hours": "20:00 - 02:00",
+        let mut work_habits = serde_json::json!({
+            "biorhythm": "Unknown",
+            "active_hours": "N/A",
             "focus_span": "Deep Work (2-3 hrs)"
         });
+        
+        if let Ok(mut stmt) = db_lock.conn.prepare(
+            "SELECT CAST(strftime('%H', timestamp) AS INTEGER) as hour, COUNT(*) as activity 
+             FROM events 
+             WHERE timestamp >= datetime('now', '-7 day') 
+             GROUP BY hour ORDER BY activity DESC LIMIT 1"
+        ) {
+            if let Ok(mut rows) = stmt.query([]) {
+                if let Ok(Some(row)) = rows.next() {
+                    let peak_hour: i32 = row.get(0).unwrap_or(12);
+                    let (biorhythm, active_hours) = match peak_hour {
+                        20..=23 | 0..=5 => ("Night Owl", "20:00 - 05:00"),
+                        6..=12 => ("Early Bird", "06:00 - 12:00"),
+                        _ => ("Daytime Worker", "13:00 - 19:00"),
+                    };
+                    work_habits["biorhythm"] = serde_json::json!(biorhythm);
+                    work_habits["active_hours"] = serde_json::json!(active_hours);
+                }
+            }
+        }
 
         // 5. Ký điện tử và lưu
         let signature_data = format!("{}{}{}{}{}{}{}", public_key, title, radar_scores, tech_stack, principles, communication_style, work_habits);

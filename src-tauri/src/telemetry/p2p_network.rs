@@ -226,9 +226,9 @@ impl P2pNetworkManager {
                                 if let (Some(my_prof), Some(peer_prof)) = (&user_intent.matching_profile, &intent.matching_profile) {
                                     // 1. Lọc cứng (Hard Filters)
                                     // Nếu mình là Ứng viên (min_salary > 0), đối tác là HR (max_salary > 0)
-                                    if my_prof.min_salary > 0 && peer_prof.max_salary > 0 && my_prof.min_salary > peer_prof.max_salary {
+                                    if my_prof.min_salary > Some(0) && peer_prof.max_salary > Some(0) && my_prof.min_salary > peer_prof.max_salary {
                                         is_match = false;
-                                    } else if peer_prof.min_salary > 0 && my_prof.max_salary > 0 && peer_prof.min_salary > my_prof.max_salary {
+                                    } else if peer_prof.min_salary > Some(0) && my_prof.max_salary > Some(0) && peer_prof.min_salary > my_prof.max_salary {
                                         is_match = false;
                                     }
 

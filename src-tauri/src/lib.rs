@@ -6,6 +6,7 @@ pub mod mcp_server;
 use std::sync::{Arc, Mutex};
 use telemetry::state_machine::StateMachine;
 use slm_client::gemini::GeminiClient;
+use tauri::Manager;
 
 pub struct AppState {
     pub db: Arc<Mutex<StateMachine>>,
@@ -291,8 +292,63 @@ pub fn run() {
                 let mut interval = tokio::time::interval(std::time::Duration::from_secs(24 * 3600));
                 loop {
                     interval.tick().await;
-                    // Chạy ngầm: Chỉ đồng bộ nếu đã có refresh token (Không mở popup login)
+                    // 1. Đồng bộ Google Drive
                     let _ = crate::telemetry::google_sync::GoogleSyncManager::login_and_sync(app_handle.clone()).await;
+                    
+                    // 2. Chạy Pipeline AI 24h
+                    let state = app_handle.state::<AppState>();
+                    let db = state.db.clone();
+                    
+                    // Gom session
+                    let _ = crate::telemetry::sessionizer::Sessionizer::process_raw_events(db.clone());
+                    
+                    // CodeAnalyzer
+                    if let Ok(code_logs) = crate::telemetry::user_profiler::MultiAgentProfiler::get_logs_for_agent(db.clone(), &crate::telemetry::user_profiler::AgentType::CodeAnalyzer) {
+                        if !code_logs.is_empty() {
+                            let prompt = crate::telemetry::user_profiler::MultiAgentProfiler::build_agent_prompt(&crate::telemetry::user_profiler::AgentType::CodeAnalyzer, &code_logs);
+                            if let Ok(json_res) = crate::slm_client::gemini_companion::run_gemini_background_prompt(app_handle.clone(), prompt, None, None).await {
+                                let _ = crate::telemetry::user_profiler::MultiAgentProfiler::save_dna(db.clone(), "CodeAnalyzer", &json_res);
+                            }
+                        }
+                    }
+                    
+                    // CommunicationAnalyzer
+                    if let Ok(comm_logs) = crate::telemetry::user_profiler::MultiAgentProfiler::get_logs_for_agent(db.clone(), &crate::telemetry::user_profiler::AgentType::CommunicationAnalyzer) {
+                        if !comm_logs.is_empty() {
+                            let prompt = crate::telemetry::user_profiler::MultiAgentProfiler::build_agent_prompt(&crate::telemetry::user_profiler::AgentType::CommunicationAnalyzer, &comm_logs);
+                            if let Ok(json_res) = crate::slm_client::gemini_companion::run_gemini_background_prompt(app_handle.clone(), prompt, None, None).await {
+                                let _ = crate::telemetry::user_profiler::MultiAgentProfiler::save_dna(db.clone(), "CommunicationAnalyzer", &json_res);
+                            }
+                        }
+                    }
+                    
+                    // EvaluationCore (Chấm điểm Session)
+                    if let Ok(pending_evals) = crate::telemetry::evaluation_core::EvaluationCore::get_pending_evaluations(db.clone()) {
+                        for (session_id, prompt) in pending_evals {
+                            if let Ok(json_res) = crate::slm_client::gemini_companion::run_gemini_background_prompt(app_handle.clone(), prompt, None, None).await {
+                                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json_res) {
+                                    if let Ok(db_lock) = db.lock() {
+                                        let _ = db_lock.conn.execute(
+                                            "UPDATE session_evaluations SET competence=?1, discipline=?2, creativity=?3, critical_thinking=?4, collaboration=?5, ai_efficiency=?6, prompt_quality=?7 WHERE session_id=?8",
+                                            (
+                                                parsed["competence"].as_i64().unwrap_or(0),
+                                                parsed["discipline"].as_i64().unwrap_or(0),
+                                                parsed["creativity"].as_i64().unwrap_or(0),
+                                                parsed["critical_thinking"].as_i64().unwrap_or(0),
+                                                parsed["collaboration"].as_i64().unwrap_or(0),
+                                                parsed["ai_efficiency"].as_i64().unwrap_or(0),
+                                                parsed["prompt_quality"].as_i64().unwrap_or(0),
+                                                session_id
+                                            )
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Cuối cùng: Cập nhật DNA Passport lên P2P/Web
+                    let _ = crate::telemetry::user_profiler::MultiAgentProfiler::synthesize_public_profile(db.clone());
                 }
             });
             Ok(())

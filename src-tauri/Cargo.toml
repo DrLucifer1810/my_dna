@@ -24,7 +24,7 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
-windows = { version = "0.58", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading"] }
+windows = { version = "0.58", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_UI_Input", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_LibraryLoader"] }
 uiautomation = "0.3"
 clipboard-win = "5.4"
 rusqlite = { version = "0.31", features = ["bundled"] }
@@ -47,5 +47,3 @@ libp2p = { version = "0.54", features = ["tokio", "tcp", "noise", "yamux", "kad"
 libp2p-request-response = { version = "0.27", features = ["cbor"] }
 teloxide = { version = "0.17.0", features = ["macros", "rustls"] }
 sysinfo = "0.33"
-rdev = "0.5.3"
-

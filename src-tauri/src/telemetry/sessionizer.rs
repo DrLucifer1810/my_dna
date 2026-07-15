@@ -79,10 +79,10 @@ impl Sessionizer {
 
                     let edit_ratio = Self::calculate_edit_ratio(&current_ai_output, &raw_content);
 
-                    // Insert Session
+                    // Insert Session (Lưu cả đầu vào của AI và code cuối cùng của User)
                     db_lock.conn.execute(
-                        "INSERT INTO sessions (start_time, end_time, category, raw_context) VALUES (?1, ?2, ?3, ?4)",
-                        (&session_start_time, &timestamp, category, &current_ai_output),
+                        "INSERT INTO sessions (start_time, end_time, category, raw_context, final_content) VALUES (?1, ?2, ?3, ?4, ?5)",
+                        (&session_start_time, &timestamp, category, &current_ai_output, &raw_content),
                     )?;
 
                     let session_id = db_lock.conn.last_insert_rowid();

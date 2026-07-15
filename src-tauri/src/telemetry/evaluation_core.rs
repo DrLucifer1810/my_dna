@@ -52,7 +52,7 @@ Respond ONLY with a JSON object:
     pub fn get_pending_evaluations(state: Arc<Mutex<StateMachine>>) -> Result<Vec<(i64, String)>> {
         let db_lock = state.lock().unwrap();
         let mut stmt = db_lock.conn.prepare(
-            "SELECT s.id, s.category, s.raw_context, e.edit_ratio 
+            "SELECT s.id, s.category, s.raw_context, s.final_content, e.edit_ratio 
              FROM sessions s 
              JOIN session_evaluations e ON s.id = e.session_id 
              WHERE e.prompt_quality IS NULL LIMIT 5"
@@ -62,11 +62,12 @@ Respond ONLY with a JSON object:
             let session_id: i64 = row.get(0)?;
             let category: String = row.get(1)?;
             let ai_output: String = row.get(2)?;
-            let edit_ratio: f64 = row.get(3)?;
+            let final_content: Option<String> = row.get(3)?;
+            let edit_ratio: f64 = row.get(4)?;
             
-            // Giả định file_saved raw_content không lưu trực tiếp trong session để tối ưu, ta truyền raw_context tạm thời
-            // (Trong thực tế ta sẽ query lại event cuối cùng của session_id này)
-            let prompt = Self::build_evaluation_prompt(&category, &ai_output, "User Final Version Here", edit_ratio);
+            // Xoá bỏ đoạn mã Mock giả tạo - Sử dụng đoạn text thật của User
+            let final_text = final_content.unwrap_or_else(|| "".to_string());
+            let prompt = Self::build_evaluation_prompt(&category, &ai_output, &final_text, edit_ratio);
             
             Ok((session_id, prompt))
         })?;

@@ -33,10 +33,13 @@ impl StateMachine {
                 start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
                 end_time DATETIME,
                 category TEXT,
-                raw_context TEXT
+                raw_context TEXT,
+                final_content TEXT
             )",
             [],
         )?;
+        
+        let _ = conn.execute("ALTER TABLE sessions ADD COLUMN final_content TEXT", []);
 
         // Phase 1.7: Bảng Session Evaluations để lưu điểm đánh giá từ LLM (Chuẩn Enterprise Matrix)
         conn.execute(

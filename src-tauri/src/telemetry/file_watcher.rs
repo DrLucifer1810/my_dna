@@ -29,7 +29,8 @@ pub fn spawn_file_watcher(state: Arc<Mutex<StateMachine>>, watch_dir: &str) {
                     for path in paths {
                         // Bỏ qua các file ẩn/tạm
                         if let Some(ext) = path.extension() {
-                            if ext == "tmp" || ext == "crdownload" { continue; }
+                            let ext_str = ext.to_string_lossy();
+                            if ext_str == "tmp" || ext_str == "crdownload" { continue; }
                         }
                         
                         // Đọc nội dung file

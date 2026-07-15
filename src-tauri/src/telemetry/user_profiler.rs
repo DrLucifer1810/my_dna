@@ -132,23 +132,40 @@ impl MultiAgentProfiler {
         
         // 1. Lấy điểm Radar
         let mut radar_scores = serde_json::json!({});
+        let mut ddat_level = "Junior (DDaT)".to_string();
+        
         if let Ok(mut stmt) = db_lock.conn.prepare("SELECT AVG(competence), AVG(discipline), AVG(creativity), AVG(critical_thinking), AVG(collaboration), AVG(ai_efficiency) FROM session_evaluations") {
             if let Ok(mut rows) = stmt.query([]) {
                 if let Ok(Some(row)) = rows.next() {
+                    let comp: f64 = row.get(0).unwrap_or(0.0);
+                    let disc: f64 = row.get(1).unwrap_or(0.0);
+                    let crea: f64 = row.get(2).unwrap_or(0.0);
+                    let crit: f64 = row.get(3).unwrap_or(0.0);
+                    let coll: f64 = row.get(4).unwrap_or(0.0);
+                    let ai_eff: f64 = row.get(5).unwrap_or(0.0);
+                    
+                    let avg_score = (comp + disc + crea + crit + coll + ai_eff) / 6.0;
+                    
+                    if avg_score >= 80.0 && coll >= 85.0 {
+                        ddat_level = "Senior (DDaT)".to_string();
+                    } else if avg_score >= 60.0 {
+                        ddat_level = "Mid-Level (DDaT)".to_string();
+                    }
+                    
                     radar_scores = serde_json::json!({
-                        "competence": row.get::<_, f64>(0).unwrap_or(0.0),
-                        "discipline": row.get::<_, f64>(1).unwrap_or(0.0),
-                        "creativity": row.get::<_, f64>(2).unwrap_or(0.0),
-                        "critical_thinking": row.get::<_, f64>(3).unwrap_or(0.0),
-                        "collaboration": row.get::<_, f64>(4).unwrap_or(0.0),
-                        "ai_efficiency": row.get::<_, f64>(5).unwrap_or(0.0)
+                        "competence": comp,
+                        "discipline": disc,
+                        "creativity": crea,
+                        "critical_thinking": crit,
+                        "collaboration": coll,
+                        "ai_efficiency": ai_eff
                     });
                 }
             }
         }
 
         // 2. Lấy Chức danh & Tech Stack
-        let mut title = "Software Engineer".to_string();
+        let mut title = ddat_level.clone();
         let mut tech_stack = serde_json::json!([]);
         let mut principles = serde_json::json!([]);
         if let Ok(mut stmt) = db_lock.conn.prepare("SELECT extracted_traits FROM user_dna WHERE agent_type = 'CodeAnalyzer' ORDER BY timestamp DESC LIMIT 1") {
@@ -156,7 +173,8 @@ impl MultiAgentProfiler {
                 if let Ok(Some(row)) = rows.next() {
                     let traits_str: String = row.get(0).unwrap_or_default();
                     if let Ok(val) = serde_json::from_str::<serde_json::Value>(&traits_str) {
-                        title = val.get("profession").and_then(|v| v.as_str()).unwrap_or("Software Engineer").to_string();
+                        let role = val.get("profession").and_then(|v| v.as_str()).unwrap_or("Software Engineer");
+                        title = format!("{} {}", ddat_level, role);
                         if let Some(habits) = val.get("coding_habits") {
                             tech_stack = habits.get("good").cloned().unwrap_or(serde_json::json!([]));
                             principles = habits.get("principles").cloned().unwrap_or(serde_json::json!(["Fail-Fast", "Clean Code"])); 

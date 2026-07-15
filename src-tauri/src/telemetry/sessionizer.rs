@@ -52,20 +52,39 @@ impl Sessionizer {
 
         let mut current_ai_output = String::new();
         let mut session_start_time = String::new();
+        let mut context_switches = 0;
+        let mut last_window = String::new();
         
         for row in rows {
             if let Ok((_id, event_type, title, raw_content, timestamp)) = row {
                 let lower_title = title.to_lowercase();
                 
+                if event_type == "WINDOW_CHANGE" {
+                    if !session_start_time.is_empty() && title != last_window {
+                        context_switches += 1;
+                    }
+                    last_window = title.clone();
+                }
+
                 // User copy từ trình duyệt AI -> Đây là AI Output (Bắt đầu Session sử dụng AI)
                 if event_type == "CLIPBOARD_COPY" && (lower_title.contains("gemini") || lower_title.contains("chat") || lower_title.is_empty()) {
-                    current_ai_output = raw_content;
+                    current_ai_output = format!("=== [AI OUTPUT] ===\n{}\n", raw_content);
                     session_start_time = timestamp;
+                    context_switches = 0;
                     continue;
                 }
 
-                // Nếu có AI Output trước đó, và giờ user thực hiện Save File hoặc Sửa Text -> Kết thúc Session
-                if !current_ai_output.is_empty() && (event_type == "FILE_SAVED" || event_type == "FOCUSED_TEXT") {
+                // Cộng dồn mọi hoạt động gõ phím và màn hình vào chuỗi (Omniscient Stream)
+                if !current_ai_output.is_empty() {
+                    if event_type == "KEYSTROKES" {
+                        current_ai_output.push_str(&format!("(Typing): {}\n", raw_content));
+                    } else if event_type == "FOCUSED_TEXT" {
+                        current_ai_output.push_str(&format!("=== [SCREEN DUMP - {}] ===\n{}\n", title, raw_content));
+                    }
+                }
+
+                // Nếu có AI Output trước đó, và giờ user thực hiện Save File -> Kết thúc Session
+                if !current_ai_output.is_empty() && event_type == "FILE_SAVED" {
                     // Tránh các event rác quá ngắn
                     if raw_content.len() < 10 { continue; }
 
@@ -81,8 +100,9 @@ impl Sessionizer {
 
                     // Insert Session (Lưu cả đầu vào của AI và code cuối cùng của User)
                     db_lock.conn.execute(
-                        "INSERT INTO sessions (start_time, end_time, category, raw_context, final_content) VALUES (?1, ?2, ?3, ?4, ?5)",
-                        (&session_start_time, &timestamp, category, &current_ai_output, &raw_content),
+                        "INSERT INTO sessions (start_time, end_time, category, raw_context, final_content, context_switches, duration_seconds) 
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, CAST(strftime('%s', ?2) - strftime('%s', ?1) AS INTEGER))",
+                        (&session_start_time, &timestamp, category, &current_ai_output, &raw_content, context_switches),
                     )?;
 
                     let session_id = db_lock.conn.last_insert_rowid();
@@ -95,6 +115,7 @@ impl Sessionizer {
 
                     // Reset để đón Session tiếp theo
                     current_ai_output.clear();
+                    session_start_time.clear();
                 }
             }
         }

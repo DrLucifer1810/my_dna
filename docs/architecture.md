@@ -2,12 +2,13 @@
 
 Tài liệu này mô tả chi tiết toàn bộ các kỹ thuật thực tế (Production-Ready) đã được triển khai, đảm bảo nguyên tắc **không sử dụng dữ liệu giả lập (No-Mocking)** trong lõi hệ thống. Hệ thống đã được nâng cấp với Kiến trúc Multi-Agent và Model Context Protocol (MCP).
 
-## 1. Cross-App Telemetry Engine (Rust / Win32 API)
-Kiến trúc truy vết được thiết kế ở cấp độ hệ điều hành Windows, loại bỏ sự phụ thuộc vào các Web Scraper truyền thống.
+## 1. Omniscient Telemetry Engine (Rust / Win32 API)
+Kiến trúc truy vết được thiết kế ở cấp độ hệ điều hành Windows để thu thập 100% dữ liệu tương tác mà không bỏ sót bất kỳ chi tiết nào, hoạt động cho mọi ngành nghề (Coder, Marketer, HR, etc.).
 
-*   **Window Tracker (`window_tracker.rs`)**: Sử dụng API `GetForegroundWindow` và `GetWindowThreadProcessId` (Microsoft Win32 API) để ghi nhận ứng dụng đang Active.
-*   **Clipboard Lineage (`clipboard.rs`)**: Lắng nghe sự kiện Copy/Paste qua `clipboard-win`, áp dụng băm `Lineage ID` để liên kết luồng thông tin mà không lưu toàn bộ Text nhằm bảo mật quyền riêng tư.
-*   **Accessibility Hook (`accessibility.rs`)**: Tương tác với COM API qua `uiautomation` để lấy Element được Focus.
+*   **Deep UI Tree Walker (`accessibility.rs`)**: Không chỉ lấy thẻ đang focus, hệ thống sử dụng `UITreeWalker` (UIAutomation) để trích xuất (dump) toàn bộ văn bản hiển thị trên màn hình hiện tại (từ Log lỗi Terminal, Email đến nội dung Chat) thành Raw Text.
+*   **Global Keylogger (`worker.rs` & `rdev`)**: Bắt toàn bộ sự kiện gõ phím ở mức OS Level để biết chính xác quá trình tư duy và sửa lỗi của người dùng.
+*   **Window Tracker & Clipboard (`window_tracker.rs`, `clipboard.rs`)**: Lắng nghe sự thay đổi cửa sổ để đo `context_switches` và lưu vết Clipboard để liên kết luồng Copy/Paste.
+*   **Chronological Sessionizer (`sessionizer.rs`)**: Kết nối toàn bộ Screen Dumps, Keystrokes, AI Outputs thành một Chuỗi Thời Gian (Chronological Stream) liền mạch gửi thẳng cho LLM phân tích.
 *   **State Machine (`state_machine.rs`)**: Quản lý State cục bộ và ghi log thô vào `portable-test/local_events.db` (SQLite).
 
 ## 2. Dynamic Data Synthesizer (Gemini AI API)

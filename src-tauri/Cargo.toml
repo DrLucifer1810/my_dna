@@ -46,4 +46,6 @@ ed25519-dalek = "3.0.0"
 libp2p = { version = "0.54", features = ["tokio", "tcp", "noise", "yamux", "kad", "identify", "ping", "gossipsub", "request-response", "macros", "autonat", "relay", "dcutr"] }
 libp2p-request-response = { version = "0.27", features = ["cbor"] }
 teloxide = { version = "0.17.0", features = ["macros", "rustls"] }
+sysinfo = "0.33"
+rdev = "0.5.3"
 

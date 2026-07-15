@@ -25,6 +25,11 @@ impl StateMachine {
 
         // Phase 1.3: Thêm cột raw_content để lưu trữ nội dung thực tế (Semantic Diff)
         let _ = conn.execute("ALTER TABLE events ADD COLUMN raw_content TEXT", []);
+        
+        // Phase 5: Thu thập hành vi sâu (APM, Terminal)
+        let _ = conn.execute("ALTER TABLE events ADD COLUMN apm INTEGER DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE events ADD COLUMN exit_code INTEGER", []);
+        let _ = conn.execute("ALTER TABLE events ADD COLUMN terminal_log TEXT", []);
 
         // Phase 1.7: Bảng Sessions để gom nhóm sự kiện theo luồng công việc
         conn.execute(
@@ -40,6 +45,11 @@ impl StateMachine {
         )?;
         
         let _ = conn.execute("ALTER TABLE sessions ADD COLUMN final_content TEXT", []);
+        
+        // Phase 5: Thu thập tổng hợp cho Session
+        let _ = conn.execute("ALTER TABLE sessions ADD COLUMN duration_seconds INTEGER DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE sessions ADD COLUMN context_switches INTEGER DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE sessions ADD COLUMN build_success_rate REAL DEFAULT 0.0", []);
 
         // Phase 1.7: Bảng Session Evaluations để lưu điểm đánh giá từ LLM (Chuẩn Enterprise Matrix)
         conn.execute(
@@ -109,10 +119,10 @@ impl StateMachine {
         Ok(StateMachine { conn })
     }
 
-    pub fn log_window_change(&self, title: &str, process_id: u32) -> Result<()> {
+    pub fn log_window_change(&self, title: &str, process_id: u32, apm: u32) -> Result<()> {
         self.conn.execute(
-            "INSERT INTO events (event_type, window_title, process_id) VALUES (?1, ?2, ?3)",
-            ("WINDOW_CHANGE", title, process_id),
+            "INSERT INTO events (event_type, window_title, process_id, apm) VALUES (?1, ?2, ?3, ?4)",
+            ("WINDOW_CHANGE", title, process_id, apm),
         )?;
         Ok(())
     }
@@ -137,6 +147,22 @@ impl StateMachine {
         self.conn.execute(
             "INSERT INTO events (event_type, window_title, raw_content) VALUES (?1, ?2, ?3)",
             ("FILE_SAVED", file_path, content),
+        )?;
+        Ok(())
+    }
+
+    pub fn log_terminal_execution(&self, command: &str, exit_code: i32, log: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO events (event_type, window_title, exit_code, terminal_log) VALUES (?1, ?2, ?3, ?4)",
+            ("TERMINAL_EXECUTION", command, exit_code, log),
+        )?;
+        Ok(())
+    }
+
+    pub fn log_keystrokes(&self, text: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO events (event_type, raw_content) VALUES (?1, ?2)",
+            ("KEYSTROKES", text),
         )?;
         Ok(())
     }

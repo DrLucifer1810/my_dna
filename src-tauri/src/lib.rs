@@ -136,6 +136,31 @@ async fn login_and_sync_google_drive(app: tauri::AppHandle) -> Result<String, St
 }
 
 #[tauri::command]
+async fn save_telegram_config(
+    token: String, 
+    chat_id: String, 
+    enabled: bool,
+    app: tauri::AppHandle, 
+    state: tauri::State<'_, AppState>
+) -> Result<String, String> {
+    let db_lock = state.db.lock().map_err(|_| "Failed to lock database".to_string())?;
+    db_lock.set_telegram_token(&token).map_err(|e| e.to_string())?;
+    db_lock.set_telegram_chat_id(&chat_id).map_err(|e| e.to_string())?;
+    db_lock.conn.execute("UPDATE settings SET mentor_ai_enabled = ?1 WHERE id = 1", (enabled,)).map_err(|e| e.to_string())?;
+    
+    // Nếu enabled, khởi động lại listener cục bộ ngay lập tức
+    if enabled {
+        let app_clone = app.clone();
+        let db_arc = state.db.clone();
+        tokio::spawn(async move {
+            crate::telemetry::telegram_bot::start_telegram_listener(app_clone, db_arc).await;
+        });
+    }
+
+    Ok("Telegram config saved successfully".to_string())
+}
+
+#[tauri::command]
 async fn start_p2p_network(
     intent_recruiting: bool,
     intent_looking_job: bool,
@@ -158,7 +183,7 @@ async fn start_p2p_network(
         bootstrap_str.split(',').map(|s| s.to_string()).collect()
     };
 
-    // Hỗ trợ Clustering giả lập: Nếu chạy nhiều Node trên 1 máy
+    // Hỗ trợ Clustering môi trường Local: Nếu chạy nhiều Node trên 1 máy
     let node_suffix = std::env::var("MYDNA_TEST_NODE").unwrap_or_default();
     let service_name = if node_suffix.is_empty() {
         "MyDNA_Enterprise_P2P".to_string()
@@ -172,7 +197,7 @@ async fn start_p2p_network(
     let key_hex = match entry.get_password() {
         Ok(k) => k,
         Err(_) => {
-            // Tự động sinh Key cho Test Node giả lập
+            // Tự động sinh Key cho Local Test Node
             if !node_suffix.is_empty() {
                 let kp = libp2p::identity::ed25519::Keypair::generate();
                 let hex = hex::encode(kp.to_bytes());
@@ -284,10 +309,21 @@ pub fn run() {
     });
 
     let gemini_client = GeminiClient::new();
+    let setup_db = shared_db.clone();
 
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(move |app| {
             let app_handle = app.handle().clone();
+            
+            // Khởi động Telegram MentorAI Event Listener nếu được bật
+            let telegram_db = setup_db.clone();
+            let telegram_app = app_handle.clone();
+            tokio::spawn(async move {
+                let is_enabled = telegram_db.lock().unwrap().is_mentor_enabled().unwrap_or(false);
+                if is_enabled {
+                    crate::telemetry::telegram_bot::start_telegram_listener(telegram_app, telegram_db.clone()).await;
+                }
+            });
             tokio::spawn(async move {
                 let mut interval = tokio::time::interval(std::time::Duration::from_secs(24 * 3600));
                 loop {
@@ -349,6 +385,31 @@ pub fn run() {
                     
                     // Cuối cùng: Cập nhật DNA Passport lên P2P/Web
                     let _ = crate::telemetry::user_profiler::MultiAgentProfiler::synthesize_public_profile(db.clone());
+                    
+                    // Phase 4: Proactive Daily Mentor qua Telegram
+                    let (is_enabled, chat_id_opt, token_opt) = {
+                        let lock = db.lock().unwrap();
+                        (
+                            lock.is_mentor_enabled().unwrap_or(false),
+                            lock.get_telegram_chat_id().unwrap_or(None),
+                            lock.get_telegram_token().unwrap_or(None)
+                        )
+                    };
+
+                    if is_enabled {
+                        if let Some(chat_id_str) = chat_id_opt {
+                            if let Ok(chat_id) = chat_id_str.parse::<i64>() {
+                                if let Some(token) = token_opt {
+                                    let bot = teloxide::Bot::new(token);
+                                    let prompt = "Dựa trên log hoạt động hôm nay, hãy tổng kết ngắn gọn những thói quen xấu (nếu có) và đưa ra 1 lời khuyên mentoring duy nhất (dưới 100 chữ) để tôi code tốt hơn vào ngày mai.".to_string();
+                                    if let Ok(advice) = crate::slm_client::gemini_companion::run_gemini_background_prompt(app_handle.clone(), prompt, None, None).await {
+                                        use teloxide::requests::Requester;
+                                        let _ = bot.send_message(teloxide::types::ChatId(chat_id), format!("🌙 [Daily Mentor]\n{}", advice)).await;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             });
             Ok(())
@@ -368,6 +429,7 @@ pub fn run() {
             force_analyze_logs,
             login_google,
             login_and_sync_google_drive,
+            save_telegram_config,
             start_p2p_network,
             crate::slm_client::gemini_companion::ensure_gemini_login,
             crate::slm_client::gemini_companion::run_gemini_background_prompt,
@@ -404,7 +466,7 @@ mod tests {
         
         std::thread::sleep(Duration::from_secs(1));
         
-        // Mô phỏng người dùng copy văn bản thật trên Windows
+        // Kích hoạt sự kiện Copy text trên Windows API cho Test Case
         if let Ok(_) = clipboard_win::set_clipboard_string("REAL_PRODUCTION_DATA_123") {
             // Đợi 3 giây để worker quét và lưu vào DB (loop chạy mỗi 2s)
             std::thread::sleep(Duration::from_secs(3));

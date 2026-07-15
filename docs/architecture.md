@@ -46,3 +46,8 @@ MyDNA hoạt động như một máy chủ ngữ cảnh nội bộ (Context Prov
 *   **Row-level Cryptographic Signature:** Mọi điểm số và DNA được ghi vào Database đều phải ký chữ ký điện tử HMAC-SHA256 bằng Khóa bí mật (Secret Key) được lưu trữ sâu trong **Windows Credential Manager (OS Keyring)**. Tuyệt đối không hardcode khóa trong source code.
 *   **Fail-Fast Integrity Check:** API cung cấp dữ liệu liên tục verify chữ ký lúc Runtime. Nếu phát hiện user dùng tool (như DB Browser) sửa trộm điểm thành "100", hệ thống lập tức ném mã lỗi `-32603 (DATA_TAMPERED)`.
 *   **P2P Cross-Validation (Phase 2 Roadmap):** Để ngăn chặn rủi ro user can thiệp tận cấp độ mã băm hệ thống, ứng dụng sẽ được mở rộng bằng cơ chế Mạng ngang hàng (P2P Network). Hồ sơ DNA của một nút mạng (node) sẽ được gửi đi để đối soát chéo (cross-validated) bởi các máy tính khác trong mạng lưới Enterprise. Nếu băm sai lệch so với phân phối chung, hồ sơ sẽ bị hệ thống đánh dấu "Unverified".
+
+## 8. Trợ lý AI Chủ động (Telegram MentorAI - True Push)
+*   **Decentralized Event Listener**: Ứng dụng tích hợp trực tiếp SDK Telegram Bot (`teloxide`) chạy ngầm trong máy tính của người dùng (Zero Conflict, Zero Polling Overhead). 
+*   **100% Privacy**: Mỗi user dùng Token bot của riêng mình. Không yêu cầu máy chủ trung gian (Serverless / Webhook / Cloudflare), đảm bảo tin nhắn không bao giờ bị lộ ra ngoài.
+*   **Proactive Push**: Tích hợp luồng phân tích 24h tự động để đúc kết "Thói quen xấu" (Bad Habits) và đẩy trực tiếp một lời khuyên ngắn gọn, mang tính hành động qua Telegram mỗi ngày. User có thể chat 2 chiều để hỏi sâu hơn dựa vào Context cục bộ.

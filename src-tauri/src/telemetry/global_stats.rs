@@ -28,6 +28,9 @@ pub async fn start_global_stats_sync(
         .map(|s| s.name)
         .collect::<Vec<String>>();
 
+    let data_to_sign = format!("{}_{}_{}_{}", public_key, intent, profile.seniority_level.clone(), profile.work_model.clone());
+    let real_signature = crate::telemetry::crypto::sign_data(&data_to_sign).unwrap_or_else(|_| "UNVERIFIED".to_string());
+
     let payload = GlobalStatsPayload {
         public_key,
         intent,
@@ -35,7 +38,7 @@ pub async fn start_global_stats_sync(
         work_model: profile.work_model.clone(),
         top_skills,
         salary_expectation: profile.min_salary.unwrap_or(0),
-        signature: "ed25519_dummy_sig".to_string(), // Tương lai tích hợp lấy chữ ký
+        signature: real_signature,
     };
 
     // Vòng lặp đồng bộ mỗi 24 giờ

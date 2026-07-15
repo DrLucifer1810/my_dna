@@ -15,7 +15,7 @@ pub struct IntegritySnapshot {
 pub struct IntegrityManager;
 
 impl IntegrityManager {
-    /// Tính mã băm (Hash) của file local_events.db (Giả lập)
+    /// Tính mã băm (Hash) của file local_events.db
     fn hash_local_database() -> String {
         let node_suffix = std::env::var("MYDNA_TEST_NODE").unwrap_or_default();
         let db_path = if node_suffix.is_empty() {

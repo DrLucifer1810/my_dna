@@ -86,6 +86,23 @@ impl StateMachine {
             [],
         )?;
 
+        // Phase 4: Bảng Settings cho cấu hình Telegram MentorAI
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1), -- Đảm bảo chỉ có 1 dòng
+                telegram_bot_token TEXT,
+                telegram_chat_id TEXT,
+                mentor_ai_enabled BOOLEAN DEFAULT 1
+            )",
+            [],
+        )?;
+        
+        // Chèn dòng cấu hình mặc định nếu chưa có
+        conn.execute(
+            "INSERT OR IGNORE INTO settings (id, mentor_ai_enabled) VALUES (1, 1)",
+            [],
+        )?;
+
         Ok(StateMachine { conn })
     }
 
@@ -149,6 +166,35 @@ impl StateMachine {
         // Đảo ngược lại để theo đúng trình tự thời gian tăng dần
         logs.reverse();
         Ok(logs.join("\n"))
+    }
+
+    // --- CÁC HÀM CHO PHASE 4: SETTINGS ---
+    pub fn get_telegram_token(&self) -> Result<Option<String>> {
+        let mut stmt = self.conn.prepare("SELECT telegram_bot_token FROM settings WHERE id = 1")?;
+        let token: Option<String> = stmt.query_row([], |row| row.get(0)).unwrap_or(None);
+        Ok(token)
+    }
+
+    pub fn set_telegram_token(&self, token: &str) -> Result<()> {
+        self.conn.execute("UPDATE settings SET telegram_bot_token = ?1 WHERE id = 1", (token,))?;
+        Ok(())
+    }
+
+    pub fn get_telegram_chat_id(&self) -> Result<Option<String>> {
+        let mut stmt = self.conn.prepare("SELECT telegram_chat_id FROM settings WHERE id = 1")?;
+        let chat_id: Option<String> = stmt.query_row([], |row| row.get(0)).unwrap_or(None);
+        Ok(chat_id)
+    }
+
+    pub fn set_telegram_chat_id(&self, chat_id: &str) -> Result<()> {
+        self.conn.execute("UPDATE settings SET telegram_chat_id = ?1 WHERE id = 1", (chat_id,))?;
+        Ok(())
+    }
+    
+    pub fn is_mentor_enabled(&self) -> Result<bool> {
+        let mut stmt = self.conn.prepare("SELECT mentor_ai_enabled FROM settings WHERE id = 1")?;
+        let enabled: bool = stmt.query_row([], |row| row.get(0)).unwrap_or(true);
+        Ok(enabled)
     }
 }
 

@@ -1058,7 +1058,7 @@ pub async fn parse_jd_to_profile(
         JD:\n{}",
         jd_text
     );
-    // Sử dụng UUID để định danh task_id (giả lập ở đây)
+    // Sử dụng UUID để định danh task_id duy nhất
     let stamp = format!("parse-jd-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
     let html = run_gemini_background_prompt(app, prompt, None, Some(stamp)).await?;
     

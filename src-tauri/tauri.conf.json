@@ -29,5 +29,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/DrLucifer1810/my_dna_release/releases/latest/download/updater.json"
+      ],
+      "pubkey": "dW52ZXJpZmllZF9wdWJsaWNfa2V5X3BsYWNlaG9sZGVyMTI="
+    }
   }
 }

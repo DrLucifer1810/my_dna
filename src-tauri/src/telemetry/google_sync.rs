@@ -41,7 +41,7 @@ impl GoogleSyncManager {
             Ok(token) => token,
             Err(_) => {
                 // Nếu chưa có refresh_token, mở luồng OAuth2
-                Self::perform_oauth2(app, &client_id, &client_secret).await?
+                Self::perform_oauth2(app.clone(), &client_id, &client_secret).await?
             }
         };
 
@@ -70,10 +70,24 @@ impl GoogleSyncManager {
             format!("portable-test/{}", node_suffix)
         };
 
-        // 2. Đồng bộ Database
-        Self::sync_file_to_drive(&access_token, "local_events.db", &format!("{}/local_events.db", db_dir)).await?;
+        // 2. Tải và Hợp nhất (Merge) Database từ Cloud trước khi đẩy lên
+        let local_db_path = format!("{}/local_events.db", db_dir);
+        let cloud_temp_path = format!("{}/cloud_events.db", db_dir);
+        
+        if let Ok(true) = Self::download_file_from_drive(&access_token, "local_events.db", &cloud_temp_path).await {
+            use tauri::Manager;
+            if let Some(state) = app.try_state::<crate::AppState>() {
+                if let Ok(db_lock) = state.db.lock() {
+                    let _ = db_lock.merge_with_cloud_db(&cloud_temp_path);
+                }
+            }
+            let _ = std::fs::remove_file(&cloud_temp_path);
+        }
 
-        // 3. Đồng bộ Snapshot tính toàn vẹn (Cross-Verification)
+        // 3. Đẩy (Sync) Database đã hợp nhất lên Cloud
+        Self::sync_file_to_drive(&access_token, "local_events.db", &local_db_path).await?;
+
+        // 4. Đồng bộ Snapshot tính toàn vẹn (Cross-Verification)
         Self::sync_file_to_drive(&access_token, "my_snapshot.json", &format!("{}/my_snapshot.json", db_dir)).await?;
 
         Ok("Đồng bộ dữ liệu an toàn thành công!".to_string())
@@ -208,6 +222,31 @@ impl GoogleSyncManager {
         }
 
         Ok(())
+    }
+
+    /// Tải một file từ appDataFolder về máy tính
+    async fn download_file_from_drive(access_token: &str, file_name: &str, save_path: &str) -> Result<bool, String> {
+        let client = Client::new();
+        let search_url = format!("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='{}'", file_name);
+        
+        if let Ok(res) = client.get(&search_url).bearer_auth(access_token).send().await {
+            if let Ok(file_list) = res.json::<DriveFileList>().await {
+                if let Some(files) = file_list.files {
+                    if !files.is_empty() {
+                        let file_id = &files[0].id;
+                        let download_url = format!("https://www.googleapis.com/drive/v3/files/{}?alt=media", file_id);
+                        
+                        if let Ok(res) = client.get(&download_url).bearer_auth(access_token).send().await {
+                            if let Ok(bytes) = res.bytes().await {
+                                let _ = fs::write(save_path, bytes);
+                                return Ok(true);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(false)
     }
 
     /// Backup local_events.db lên appDataFolder

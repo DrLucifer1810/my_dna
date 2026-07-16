@@ -36,8 +36,11 @@ impl AgentType {
 }
 
 impl MultiAgentProfiler {
-    /// Đọc cấu hình Prompt từ YAML động
+    /// Đọc cấu hình Prompt từ YAML động và kiểm tra tính toàn vẹn (Mã băm chuẩn)
     pub fn load_prompts() -> std::result::Result<PromptConfig, String> {
+        // Kiểm tra Hash của file trước khi parse, nếu sai -> FAIL FAST
+        let _hash = crate::telemetry::standard_manager::StandardManager::get_current_standard_hash()?;
+        
         let yaml_str = fs::read_to_string("portable-test/prompts.yaml")
             .map_err(|e| format!("Failed to read prompts.yaml: {}", e))?;
         serde_yaml::from_str(&yaml_str)
@@ -173,11 +176,11 @@ impl MultiAgentProfiler {
                 if let Ok(Some(row)) = rows.next() {
                     let traits_str: String = row.get(0).unwrap_or_default();
                     if let Ok(val) = serde_json::from_str::<serde_json::Value>(&traits_str) {
-                        let role = val.get("profession").and_then(|v| v.as_str()).unwrap_or("Software Engineer");
+                        let role = val.get("profession").and_then(|v| v.as_str()).unwrap_or("");
                         title = format!("{} {}", ddat_level, role);
                         if let Some(habits) = val.get("coding_habits") {
                             tech_stack = habits.get("good").cloned().unwrap_or(serde_json::json!([]));
-                            principles = habits.get("principles").cloned().unwrap_or(serde_json::json!(["Fail-Fast", "Clean Code"])); 
+                            principles = habits.get("principles").cloned().unwrap_or(serde_json::json!([])); 
                         }
                     }
                 }

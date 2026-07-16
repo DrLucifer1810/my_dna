@@ -206,8 +206,28 @@
           <button id="force-diagnostic" class="danger-btn">Force Profile Diagnostic Now</button>
         </div>
         
-        <p id="settings-status"></p>
+      <!-- UPDATE MODAL -->
+      <div id="update-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+          <h2>Bản Cập Nhật Mới Có Sẵn! 🎉</h2>
+          <p>Phiên bản <strong id="update-version"></strong> đã sẵn sàng để tải xuống.</p>
+          
+          <div class="setting-item" style="display: block; margin-top: 15px;">
+            <label style="cursor: pointer;" onclick="document.getElementById('update-notes').style.display = document.getElementById('update-notes').style.display === 'none' ? 'block' : 'none'">
+              ▶ Xem chi tiết các tính năng cập nhật (Release Notes)
+            </label>
+            <div id="update-notes" style="display: none; background: #f1f5f9; padding: 10px; margin-top: 10px; border-radius: 6px; font-size: 0.9em; max-height: 200px; overflow-y: auto;">
+              <!-- Nội dung body của GitHub Release sẽ đổ vào đây -->
+            </div>
+          </div>
+          
+          <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="update-cancel-btn" class="secondary-btn" onclick="document.getElementById('update-modal').style.display='none'">Để sau</button>
+            <button id="update-confirm-btn" class="primary-btn">Cập nhật ngay</button>
+          </div>
+        </div>
       </div>
+
     </main>
 
     <script type="module" src="/main.js"></script>

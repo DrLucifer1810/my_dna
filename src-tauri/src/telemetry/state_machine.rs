@@ -229,6 +229,35 @@ impl StateMachine {
         let enabled: bool = stmt.query_row([], |row| row.get(0)).unwrap_or(true);
         Ok(enabled)
     }
+
+    // --- CÁC HÀM XỬ LÝ ĐỒNG BỘ VÀ DỌN DẸP ---
+    pub fn cleanup_processed_events(&self) -> Result<()> {
+        // Đúng như yêu cầu của User: Xử lý xong thì xóa luôn. 
+        // Ta xóa tất cả các events tạo ra trước ngày hôm nay (giả định pipeline 24h đã chạy xong).
+        self.conn.execute("DELETE FROM events WHERE timestamp < date('now', '-1 day')", [])?;
+        Ok(())
+    }
+
+    pub fn merge_with_cloud_db(&self, cloud_db_path: &str) -> Result<()> {
+        // Đính kèm DB tải từ Google Drive vào
+        let attach_query = format!("ATTACH DATABASE '{}' AS cloud", cloud_db_path);
+        self.conn.execute(&attach_query, [])?;
+
+        // Gộp dữ liệu Sessions (Nếu máy khác có session mới, chèn vào)
+        self.conn.execute("INSERT OR IGNORE INTO main.sessions SELECT * FROM cloud.sessions", [])?;
+        
+        // Gộp dữ liệu Đánh giá Session
+        self.conn.execute("INSERT OR IGNORE INTO main.session_evaluations SELECT * FROM cloud.session_evaluations", [])?;
+
+        // Gộp Hồ sơ DNA
+        self.conn.execute("INSERT OR IGNORE INTO main.user_dna SELECT * FROM cloud.user_dna", [])?;
+        
+        // Đảm bảo không bị mất Settings nếu bên kia có cập nhật
+        self.conn.execute("INSERT OR REPLACE INTO main.settings SELECT * FROM cloud.settings", [])?;
+
+        self.conn.execute("DETACH DATABASE cloud", [])?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

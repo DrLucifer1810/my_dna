@@ -69,3 +69,33 @@ pub fn get_public_key() -> Result<String, String> {
     let verifying_key = signing_key.verifying_key();
     Ok(hex::encode(verifying_key.to_bytes()))
 }
+
+pub fn verify_global_signature(data: &str, signature_hex: &str, public_key_hex: &str) -> bool {
+    use ed25519_dalek::{Verifier, VerifyingKey, Signature};
+    
+    let pk_bytes = match hex::decode(public_key_hex) {
+        Ok(b) => b,
+        Err(_) => return false,
+    };
+    
+    let mut pk_arr = [0u8; 32];
+    if pk_bytes.len() != 32 { return false; }
+    pk_arr.copy_from_slice(&pk_bytes);
+    
+    let verifying_key = match VerifyingKey::from_bytes(&pk_arr) {
+        Ok(k) => k,
+        Err(_) => return false,
+    };
+    
+    let sig_bytes = match hex::decode(signature_hex) {
+        Ok(b) => b,
+        Err(_) => return false,
+    };
+    
+    let signature = match Signature::from_slice(&sig_bytes) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    
+    verifying_key.verify(data.as_bytes(), &signature).is_ok()
+}

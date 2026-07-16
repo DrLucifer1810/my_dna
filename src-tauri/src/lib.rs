@@ -8,6 +8,36 @@ use std::sync::{Arc, Mutex};
 use telemetry::state_machine::StateMachine;
 use slm_client::gemini::GeminiClient;
 use tauri::Manager;
+use tauri_plugin_updater::UpdaterExt;
+
+#[tauri::command]
+async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    match updater.check().await {
+        Ok(Some(update)) => {
+            Ok(serde_json::json!({
+                "available": true,
+                "version": update.version,
+                "body": update.body.unwrap_or_default()
+            }))
+        }
+        Ok(None) => {
+            Ok(serde_json::json!({ "available": false }))
+        }
+        Err(e) => Err(format!("Update check failed: {}", e))
+    }
+}
+
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    if let Ok(Some(update)) = updater.check().await {
+        update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+        // Restart the app
+        app.restart();
+    }
+    Ok(())
+}
 
 pub struct AppState {
     pub db: Arc<Mutex<StateMachine>>,
@@ -92,8 +122,8 @@ async fn get_dna_profile(state: tauri::State<'_, AppState>) -> Result<serde_json
     }
 
     Ok(serde_json::json!({
-        "profession": career_dna["profession"].as_str().unwrap_or("Analyzing..."),
-        "daily_focus": career_dna["daily_focus"].as_str().unwrap_or("Analyzing..."),
+        "profession": career_dna["profession"].as_str().unwrap_or(""),
+        "daily_focus": career_dna["daily_focus"].as_str().unwrap_or(""),
         "coding_habits": {
             "good": code_dna["good_habits"].clone(),
             "bad": code_dna["bad_habits"].clone(),
@@ -247,7 +277,7 @@ async fn start_p2p_network(
     };
 
     let user_intent = crate::telemetry::p2p_network::MatchIntent {
-        peer_id: "".to_string(), // Set later
+        peer_id: "".to_string(),
         is_recruiting: intent_recruiting,
         is_looking_for_job: intent_looking_job,
         is_hiring_freelancer: intent_hiring_freelancer,
@@ -255,7 +285,8 @@ async fn start_p2p_network(
         contact_email: final_email,
         skills,
         matching_profile: matching_profile.clone(),
-        integrity_snapshot: None, // Set later
+        integrity_snapshot: None,
+        standard_hash: None,
     };
 
     crate::telemetry::p2p_network::P2pNetworkManager::start_node(port, bootstrap_nodes, &mut key_bytes, user_intent)
@@ -298,6 +329,13 @@ pub fn run() {
     let shared_db = Arc::new(Mutex::new(state_machine));
 
     telemetry::worker::spawn_telemetry_loop(shared_db.clone());
+    
+    // Tự động tải và xác thực Tiêu chuẩn Đánh giá
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = crate::telemetry::standard_manager::StandardManager::fetch_and_verify_registry().await {
+            eprintln!("Warning: Failed to fetch standard registry: {}", e);
+        }
+    });
     let watch_path = format!("{}/workspace", db_dir);
     telemetry::file_watcher::spawn_file_watcher(shared_db.clone(), &watch_path);
 
@@ -387,6 +425,11 @@ pub fn run() {
                     // Cuối cùng: Cập nhật DNA Passport lên P2P/Web
                     let _ = crate::telemetry::user_profiler::MultiAgentProfiler::synthesize_public_profile(db.clone());
                     
+                    // User Request: Xóa dữ liệu rác ngay khi xử lý xong để tối ưu dung lượng DB
+                    if let Ok(db_lock) = db.lock() {
+                        let _ = db_lock.cleanup_processed_events();
+                    }
+                    
                     // Phase 4: Proactive Daily Mentor qua Telegram
                     let (is_enabled, chat_id_opt, token_opt) = {
                         let lock = db.lock().unwrap();
@@ -422,8 +465,12 @@ pub fn run() {
         .manage(crate::slm_client::gemini_companion::PendingPrompts::default())
         .manage(crate::slm_client::gemini_companion::PendingContexts::default())
         .manage(crate::slm_client::gemini_companion::GeminiLock::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            check_for_updates,
+            install_update,
             get_evaluation_metrics,
             get_dna_profile,
             force_profile_diagnostic,

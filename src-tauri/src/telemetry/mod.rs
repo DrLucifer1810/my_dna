@@ -14,3 +14,4 @@ pub mod p2p_network;
 pub mod integrity;
 pub mod global_stats;
 pub mod telegram_bot;
+pub mod standard_manager;

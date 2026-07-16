@@ -35,6 +35,7 @@ Tất cả dữ liệu từ 3 kênh này đều đi qua một "Phễu chuẩn h�
 
 ## 6. Quyền riêng tư & Bảo mật
 - **Không gửi Raw Data lên mây mờ ám:** Mọi sự kiện Copy/Paste đều chạy qua hàm băm (Lineage ID), không lưu trọn bộ văn bản.
-- **Chống Gian lận Điện tử (Enterprise Anti-Tamper):** Áp dụng thuật toán mã hóa chữ ký số HMAC-SHA256 gắn trực tiếp vào Database thông qua OS Keyring (Windows Credential Manager). Nếu bạn cố tình dùng tool sửa database nhằm "buff" điểm kỹ năng hay chỉnh sửa nhận xét của AI, hệ thống sẽ phát hiện sai lệch băm (Hash Mismatch) và khóa tính năng xuất dữ liệu.
-- **Đối soát chéo Mạng ngang hàng (P2P Cross-Validation):** Trong tương lai (Phase 2), MyDNA sẽ chặn đứng mọi thủ thuật can thiệp băm cấp hệ điều hành bằng cách đối chiếu mã băm chéo giữa các máy tính (Agents) trong cùng một công ty, tạo ra một mạng lưới bảo mật không thể bị thao túng bởi một cá nhân độc lập.
+- **Chống Gian lận Điện tử (Enterprise Anti-Tamper):** Áp dụng thuật toán mã hóa chữ ký số HMAC-SHA256 gắn trực tiếp vào Database thông qua OS Keyring (Windows Credential Manager). Hệ thống có thêm Dynamic Standard Engine tự động băm YAML config và đối chiếu với Public Registry qua Ed25519 (Fail-fast chống chỉnh sửa Tiêu chuẩn).
+- **Đối soát chéo Mạng ngang hàng (P2P Cross-Validation):** MyDNA tự động chặn đứng mọi thủ thuật can thiệp băm cấp hệ điều hành bằng cách đối chiếu mã băm chéo giữa các máy tính (Agents). Bất cứ gói tin nào có mã băm sai lệch sẽ bị chặn 100% (Security Alert), tạo ra một mạng lưới bảo mật không thể bị thao túng bởi một cá nhân độc lập.
+- **Tự động Cập nhật (Zero-touch Auto-Updater):** Hệ thống tích hợp `tauri-plugin-updater` tự động tìm và tải bản Release mới nhất từ public repo `DrLucifer1810/my_dna_release` và tự restart ứng dụng mà người dùng không cần làm gì.
 - Database lưu cục bộ (`sqlite`) trên máy tính người dùng. Việc đẩy dữ liệu lên Google Drive là do người dùng chủ động cho phép qua tài khoản Google cá nhân.

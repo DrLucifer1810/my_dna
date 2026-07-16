@@ -284,4 +284,31 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Quét tự động ngay khi tải trang
   scanAutonomousAgents();
+
+  // Auto-Updater Check
+  const checkUpdate = () => {
+    invoke('check_for_updates').then((res) => {
+      if (res && res.available) {
+        document.getElementById('update-version').innerText = res.version || '';
+        document.getElementById('update-notes').innerHTML = res.body ? res.body.replace(/\n/g, '<br>') : 'Không có thông tin chi tiết.';
+        document.getElementById('update-modal').style.display = 'flex';
+      }
+    }).catch(err => console.error("Error checking for updates:", err));
+  };
+  
+  document.getElementById('update-confirm-btn')?.addEventListener("click", () => {
+    const btn = document.getElementById('update-confirm-btn');
+    btn.innerText = "Đang tải và Cài đặt (Vui lòng chờ)...";
+    btn.disabled = true;
+    invoke('install_update').then(() => {
+        btn.innerText = "Đã cập nhật (Khởi động lại...)";
+    }).catch(err => {
+        alert("Lỗi cập nhật: " + err);
+        btn.innerText = "Cập nhật ngay";
+        btn.disabled = false;
+    });
+  });
+
+  // Automatically check for updates on startup
+  setTimeout(checkUpdate, 3000);
 });

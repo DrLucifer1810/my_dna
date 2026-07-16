@@ -53,6 +53,8 @@ pub fn spawn_telemetry_loop(state: Arc<Mutex<StateMachine>>) {
         let mut last_snapshot = String::new();
 
         loop {
+            let mut idle_time_ms = 0;
+            
             #[cfg(not(test))]
             unsafe {
                 let mut last_input = LASTINPUTINFO {
@@ -61,7 +63,7 @@ pub fn spawn_telemetry_loop(state: Arc<Mutex<StateMachine>>) {
                 };
                 if GetLastInputInfo(&mut last_input) != 0 {
                     let current_tick = GetTickCount();
-                    let idle_time_ms = current_tick.saturating_sub(last_input.dwTime);
+                    idle_time_ms = current_tick.saturating_sub(last_input.dwTime);
                     
                     // Nếu user AFK > 60 giây, tạm ngưng để tối ưu CPU
                     if idle_time_ms > 60_000 {
@@ -93,12 +95,15 @@ pub fn spawn_telemetry_loop(state: Arc<Mutex<StateMachine>>) {
             }
 
             // 3. UIAutomation Snapshot: Bắt URL và Context code thay thế hoàn toàn cho Keylogger
-            if let Some(focused) = get_focused_element() {
-                if focused.text_value != last_snapshot {
-                    last_snapshot = focused.text_value.clone();
-                    if let Ok(state_lock) = state_for_window.lock() {
-                        // Gọi log_focused_text định kỳ với nội dung Snapshot UIA
-                        let _ = state_lock.log_focused_text(&focused.name, &focused.text_value);
+            // TỐI ƯU: Chỉ chạy get_focused_element nếu có tương tác gõ/chuột trong 10 giây qua để tiết kiệm CPU
+            if idle_time_ms < 10_000 {
+                if let Some(focused) = get_focused_element() {
+                    if focused.text_value != last_snapshot {
+                        last_snapshot = focused.text_value.clone();
+                        if let Ok(state_lock) = state_for_window.lock() {
+                            // Gọi log_focused_text định kỳ với nội dung Snapshot UIA
+                            let _ = state_lock.log_focused_text(&focused.name, &focused.text_value);
+                        }
                     }
                 }
             }

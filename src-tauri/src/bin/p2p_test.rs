@@ -15,17 +15,19 @@ async fn main() {
     let is_hiring_freelancer = std::env::var("IS_HIRING_FREELANCER").is_ok();
     
     let email = if is_freelancing { "freelancer@test.com" } else { "hr@test.com" };
+    let is_recruiting = is_hiring_freelancer;
 
     let intent = MatchIntent {
-        peer_id: "".to_string(),
-        is_recruiting: true,
-        is_looking_for_job: false,
+        peer_id: "test_peer".to_string(),
+        is_recruiting,
+        is_looking_for_job: !is_recruiting,
         is_hiring_freelancer: false,
         is_freelancing: false,
-        contact_email: "test1@domain.com".to_string(),
+        contact_email: "test@example.com".to_string(),
         skills: vec!["Rust".to_string()],
         matching_profile: None,
         integrity_snapshot: None,
+        standard_hash: None,
     };
 
     println!("[TEST-NODE] Starting Node on port {}...", port);

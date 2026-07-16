@@ -38,7 +38,7 @@ pub fn get_focused_element() -> Option<FocusedElement> {
         }
 
         // Đi xuống để gom text và tìm URL
-        dump_element_tree(&walker, &window_element, 5, 0, &mut full_text, &mut browser_url);
+        dump_element_tree(&walker, &window_element, 3, 0, &mut full_text, &mut browser_url);
         
         let mut text_value = String::new();
         if !browser_url.is_empty() {

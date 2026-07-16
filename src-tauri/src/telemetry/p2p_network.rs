@@ -38,6 +38,7 @@ pub struct MatchIntent {
     pub skills: Vec<String>, // Giữ lại cho backward compatibility
     pub matching_profile: Option<MatchingProfile>, // Cấu trúc trọng số đa chiều mới
     pub integrity_snapshot: Option<IntegritySnapshot>,
+    pub standard_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,6 +160,7 @@ impl P2pNetworkManager {
         
         user_intent.peer_id = local_peer_id.to_string();
         user_intent.integrity_snapshot = Some(my_snapshot.clone());
+        user_intent.standard_hash = crate::telemetry::standard_manager::StandardManager::get_current_standard_hash().ok();
         
         let record = kad::Record {
             key: kad::RecordKey::new(&local_peer_id.to_bytes()),
@@ -216,6 +218,17 @@ impl P2pNetworkManager {
                         
                         if let Ok(intent) = serde_json::from_slice::<MatchIntent>(&message.data) {
                             println!("[P2P] Extracted Match Intent from {}: {:?}", intent.peer_id, intent.contact_email);
+                            
+                            // Verify Standard Hash
+                            if let Some(hash) = &intent.standard_hash {
+                                if !crate::telemetry::standard_manager::StandardManager::is_hash_allowed(hash) {
+                                    println!("[P2P] SECURITY ALERT: Blocked intent from {} due to unauthorized Standard Hash!", intent.peer_id);
+                                    continue;
+                                }
+                            } else {
+                                println!("[P2P] SECURITY ALERT: Blocked intent from {} due to missing Standard Hash!", intent.peer_id);
+                                continue;
+                            }
                             
                             // Tự động phân tích nhu cầu chéo (Cross-match logic)
                             let mut is_match = (topic == TOPIC_FREELANCE && intent.is_hiring_freelancer)

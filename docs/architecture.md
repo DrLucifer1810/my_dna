@@ -11,7 +11,13 @@ Kiến trúc truy vết được thiết kế ở cấp độ hệ điều hành
 *   **Chronological Sessionizer (`sessionizer.rs`)**: Kết nối toàn bộ Screen Dumps, Keystrokes, AI Outputs thành một Chuỗi Thời Gian (Chronological Stream) liền mạch gửi thẳng cho LLM phân tích.
 *   **State Machine (`state_machine.rs`)**: Quản lý State cục bộ và ghi log thô vào `portable-test/local_events.db` (SQLite).
 
-## 2. Dynamic Data Synthesizer (Gemini AI API)
+## 2. Omni-Channel Integration Hub & Data Ingestion Engine
+MyDNA sở hữu kiến trúc thu thập dữ liệu đa nguồn thế hệ mới, thay thế hoàn toàn phương pháp thăm dò (Polling) kém hiệu quả:
+*   **Local Native Sensors (WebSockets):** Các Extension độc lập (VS Code, Chrome) kết nối trực tiếp với backend qua WebSocket.
+*   **Agentic Log Watcher (Zero-Setup):** Hệ thống sử dụng Rust `notify` để âm thầm quét và lắng nghe sự thay đổi từ các thư mục nhật ký của Autonomous AI Agents (Antigravity, Claude Code, OpenClaw, Cline) mà không cần cấu hình proxy.
+*   **Data Ingestion Pipeline (`ingestion.rs`):** Bộ chuẩn hóa dữ liệu trung tâm. Mọi gói JSON hỗn tạp từ MCP (GitHub, Jira, Slack) hay Extensions đều đi qua các Adapters để gọt giũa, chỉ giữ lại ngữ cảnh cốt lõi (VD: Tên Commit, Lệnh AI, Nội dung Chat) và dán nhãn chuẩn (`MCP_GITHUB`, `AGENTIC_LLM`) trước khi lưu vào SQLite. Điều này chống "bội thực Token" (Token bloat) cho LLM.
+
+## 3. Dynamic Data Synthesizer (Gemini AI API)
 Hệ thống kết nối trực tiếp đến **Google Gemini API** (`gemini.rs`) để chấm điểm hiệu suất sử dụng AI:
 *   Đánh giá theo Dreyfus Model (Mức độ thành thạo) và Bloom's Taxonomy (Mức độ nhận thức).
 *   Chấm điểm chất lượng (Quality Assessment) của code hoặc email cuối cùng.
@@ -27,13 +33,16 @@ Phân rã tác vụ nội bộ thành mô hình đa đặc vụ (Multi-Agent) ch
     - `CareerDiagnosticAgent`: Đoán chức danh và trọng tâm công việc hàng ngày.
 *   Dữ liệu sau khi phân tích sẽ được lưu dưới dạng JSON phân mảnh vào bảng `user_dna`.
 
-## 4. MCP Context Server (Model Context Protocol)
-MyDNA hoạt động như một máy chủ ngữ cảnh nội bộ (Context Provider):
-*   Tích hợp Framework `axum` chạy nền trong Tauri (Port `5050`).
-*   Endpoint: `http://localhost:5050/mcp/resources/user_dna`. Cung cấp SSE stream theo chuẩn MCP.
-*   Trình thông dịch AI bên thứ 3 (Cursor, Claude Desktop, DevTools) có thể kết nối vào đây để tự động tuỳ chỉnh văn phong, nguyên tắc lập trình sao cho khớp với chính User.
+## 5. MCP (Model Context Protocol) - Kiến trúc Hai chiều (Dual-Mode)
+MyDNA hoạt động cả ở vai trò **Server** lẫn **Client** trong hệ sinh thái MCP:
+*   **MCP Context Server (Provider):** 
+    - Tích hợp Framework `axum` chạy nền trong Tauri (Port `5050`). Cung cấp SSE stream.
+    - Endpoint: `http://localhost:5050/mcp/resources/user_dna`.
+    - Các AI IDE (Cursor, Claude Desktop) kết nối vào để đọc Hồ sơ DNA, tự động tuỳ chỉnh văn phong, nguyên tắc lập trình sao cho khớp với chính User.
+*   **MCP Client (Consumer):**
+    - MyDNA làm Client kết nối đến các MCP Server của doanh nghiệp (GitHub, Jira, Slack, Notion) để bòn rút dữ liệu hành vi (VD: Đo lường chất lượng PR Review, tiến độ Jira Task, kỹ năng giao tiếp Slack) làm đầu vào cho Ingestion Engine.
 
-## 5. Storage & Cloud Sync (Google Drive)
+## 6. Storage & Cloud Sync (Google Drive)
 *   OAuth2 qua Google API để kết nối trực tiếp với Google Drive người dùng.
 *   Thư mục DACP_Workspace.
 *   Đồng bộ luồng sự kiện (Logs/DNA) lên Cloud.

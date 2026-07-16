@@ -15,17 +15,25 @@ MyDNA sở hữu nhiều "Đặc vụ ngầm" (Agents) chuyên biệt:
 
 *Các chỉ số này sẽ được hiển thị minh bạch ngay trong tab "Hồ sơ Năng lực" (DNA Profile) trên ứng dụng.*
 
-## 3. Máy chủ Cung cấp Ngữ cảnh AI (MCP Server)
+## 3. Trung tâm Kết nối Đa kênh (Omni-Channel Integration Hub)
+MyDNA không chỉ lấy dữ liệu từ bàn phím, mà còn kết nối sâu vào luồng công việc thông qua 3 kênh mạnh mẽ:
+- **Local Native Sensors:** Các extension siêu nhẹ cài đặt với 1 cú click trên VS Code, Cursor, Chrome, Edge để bắt dữ liệu LLM chuẩn xác nhất.
+- **Cloud Data Sources (MCP Client):** Kết nối trực tiếp vào các nền tảng doanh nghiệp (GitHub, Jira, Slack, Notion) qua Model Context Protocol để hút dữ liệu về chất lượng Review Code, Tiến độ Task, Kỹ năng giao tiếp.
+- **Giám sát Autonomous AI Agents (Zero-Setup):** Tính năng tự động quét đĩa để giám sát các đặc vụ AI tự trị (Antigravity, Claude Code, OpenClaw, Cline). Bạn không cần cài đặt gì, MyDNA sẽ "đọc trộm" não bộ (brain logs) của các AI này để xem bạn đã giao việc cho chúng xuất sắc đến đâu.
+
+Tất cả dữ liệu từ 3 kênh này đều đi qua một "Phễu chuẩn hóa" (Data Ingestion Engine) để làm sạch hoàn toàn rác JSON trước khi đưa cho AI phân tích.
+
+## 4. Máy chủ Cung cấp Ngữ cảnh AI (MCP Server)
 Đây là "vũ khí bí mật" của MyDNA:
 - Khởi chạy một trạm phát sóng cục bộ tại `localhost:5050` tuân thủ chuẩn **Model Context Protocol (MCP)**.
 - Khi bạn cài mới bất kỳ AI nào (Cursor IDE, Claude Desktop), chỉ cần cấu hình để nó trỏ tới cổng `5050` của MyDNA.
 - Lập tức, các con AI này sẽ "đọc vị" được bạn (biết bạn viết code style nào, hay dùng biến gì, ăn nói ra sao) và tự điều chỉnh cách phản hồi cho giống với chính bạn **mà không cần bạn phải ngồi cấu hình Prompt thủ công**.
 
-## 4. Tùy chỉnh Nâng cao qua YAML (Advanced Prompting)
+## 5. Tùy chỉnh Nâng cao qua YAML (Advanced Prompting)
 - Các công thức AI mà MyDNA dùng để đánh giá bạn không bị giấu kín trong mã nguồn. 
 - Bạn hoàn toàn có thể vào thư mục `portable-test/` mở file `prompts.yaml` bằng text editor (Notepad/VSCode) và thay đổi "nhân cách" hoặc mục tiêu phân tích của các Agents theo ý đồ doanh nghiệp. Phần mềm tự động áp dụng bản cập nhật ngay tắp lự.
 
-## 5. Quyền riêng tư & Bảo mật
+## 6. Quyền riêng tư & Bảo mật
 - **Không gửi Raw Data lên mây mờ ám:** Mọi sự kiện Copy/Paste đều chạy qua hàm băm (Lineage ID), không lưu trọn bộ văn bản.
 - **Chống Gian lận Điện tử (Enterprise Anti-Tamper):** Áp dụng thuật toán mã hóa chữ ký số HMAC-SHA256 gắn trực tiếp vào Database thông qua OS Keyring (Windows Credential Manager). Nếu bạn cố tình dùng tool sửa database nhằm "buff" điểm kỹ năng hay chỉnh sửa nhận xét của AI, hệ thống sẽ phát hiện sai lệch băm (Hash Mismatch) và khóa tính năng xuất dữ liệu.
 - **Đối soát chéo Mạng ngang hàng (P2P Cross-Validation):** Trong tương lai (Phase 2), MyDNA sẽ chặn đứng mọi thủ thuật can thiệp băm cấp hệ điều hành bằng cách đối chiếu mã băm chéo giữa các máy tính (Agents) trong cùng một công ty, tạo ra một mạng lưới bảo mật không thể bị thao túng bởi một cá nhân độc lập.

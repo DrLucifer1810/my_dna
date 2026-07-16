@@ -2,6 +2,7 @@ pub mod telemetry;
 pub mod storage;
 pub mod slm_client;
 pub mod mcp_server;
+pub mod integrations;
 
 use std::sync::{Arc, Mutex};
 use telemetry::state_machine::StateMachine;
@@ -443,7 +444,10 @@ pub fn run() {
             crate::slm_client::gemini_companion::receive_gemini_chunk,
             crate::slm_client::gemini_companion::receive_gemini_log,
             crate::slm_client::gemini_companion::receive_gemini_context,
-            crate::slm_client::webview_selectors::update_gemini_selectors
+            crate::slm_client::webview_selectors::update_gemini_selectors,
+            crate::integrations::install_vscode_extension,
+            crate::integrations::open_chrome_extension_store,
+            crate::integrations::connect_mcp_server
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -92,13 +92,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabDashboard = document.getElementById("tab-dashboard");
   const tabSettings = document.getElementById("tab-settings");
   const tabP2p = document.getElementById("tab-p2p");
+  const tabIntegrations = document.getElementById("tab-integrations");
   const viewDashboard = document.getElementById("view-dashboard");
   const viewSettings = document.getElementById("view-settings");
   const viewP2p = document.getElementById("view-p2p");
+  const viewIntegrations = document.getElementById("view-integrations");
 
   function switchTab(activeTab, activeView) {
-    [tabDashboard, tabSettings, tabP2p].forEach(t => t.classList.remove("active"));
-    [viewDashboard, viewSettings, viewP2p].forEach(v => v.style.display = "none");
+    [tabDashboard, tabSettings, tabP2p, tabIntegrations].forEach(t => t.classList.remove("active"));
+    [viewDashboard, viewSettings, viewP2p, viewIntegrations].forEach(v => v.style.display = "none");
     
     activeTab.classList.add("active");
     activeView.style.display = "block";
@@ -107,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
   tabDashboard.addEventListener("click", () => switchTab(tabDashboard, viewDashboard));
   tabSettings.addEventListener("click", () => switchTab(tabSettings, viewSettings));
   tabP2p.addEventListener("click", () => switchTab(tabP2p, viewP2p));
+  tabIntegrations.addEventListener("click", () => switchTab(tabIntegrations, viewIntegrations));
 
   // Initial loads
   renderChart();
@@ -205,4 +208,48 @@ document.addEventListener("DOMContentLoaded", () => {
           statusEl.innerHTML = `<span style="color:#ef4444;">❌ Lỗi AI: ${err}</span>`;
       });
   });
+
+  // --- INTEGRATION HUB ---
+  const logMcpStatus = (msg, isError=false) => {
+    const el = document.getElementById("mcp-status-log");
+    el.innerHTML = isError ? `<span style="color:#ef4444;">❌ ${msg}</span>` : `✅ ${msg}`;
+  };
+
+  // 1-Click Installs
+  document.getElementById("install-vscode-btn")?.addEventListener("click", () => {
+    logMcpStatus("Đang cài đặt VS Code Plugin qua CLI...");
+    invoke("install_vscode_extension").then(res => {
+      logMcpStatus(res);
+    }).catch(err => {
+      logMcpStatus(err, true);
+    });
+  });
+
+  document.getElementById("install-chrome-btn")?.addEventListener("click", () => {
+    // Thông thường mở URL Store, ở đây gọi rust để open URL
+    invoke("open_chrome_extension_store").then(res => {
+      logMcpStatus(res);
+    }).catch(err => logMcpStatus(err, true));
+  });
+
+  // MCP Connections
+  const setupMcpButton = (btnId, inputId, serverName) => {
+    document.getElementById(btnId)?.addEventListener("click", () => {
+      const token = document.getElementById(inputId).value.trim();
+      if (!token) {
+        logMcpStatus(`Vui lòng nhập Token cho ${serverName}`, true);
+        return;
+      }
+      logMcpStatus(`Đang kết nối MCP Server: ${serverName}...`);
+      invoke("connect_mcp_server", { serverName, token }).then(res => {
+        logMcpStatus(`MCP [${serverName}]: ${res}`);
+      }).catch(err => logMcpStatus(`Lỗi MCP [${serverName}]: ${err}`, true));
+    });
+  };
+
+  setupMcpButton("mcp-github-btn", "mcp-github-token", "github");
+  setupMcpButton("mcp-jira-btn", "mcp-jira-token", "jira");
+  setupMcpButton("mcp-slack-btn", "mcp-slack-token", "slack");
+  setupMcpButton("mcp-notion-btn", "mcp-notion-token", "notion");
+
 });

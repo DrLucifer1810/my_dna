@@ -13,6 +13,7 @@
       <nav class="tabs">
         <button id="tab-dashboard" class="tab-btn active">Dashboard</button>
         <button id="tab-p2p" class="tab-btn">P2P Network</button>
+        <button id="tab-integrations" class="tab-btn">Integration Hub</button>
         <button id="tab-settings" class="tab-btn">Settings</button>
       </nav>
     </header>
@@ -95,6 +96,52 @@
           <h2>Trạng thái P2P</h2>
           <p id="p2p-status">Chưa kết nối</p>
           <ul id="p2p-logs" class="log-list"></ul>
+        </div>
+      </div>
+
+      <!-- VIEW: INTEGRATION HUB -->
+      <div id="view-integrations" class="view" style="display: none;">
+        <div class="card">
+          <h2>Local Native Sensors (1-Click)</h2>
+          <p class="hint">Cài đặt các công cụ theo dõi cục bộ để bắt dữ liệu LLM sạch nhất.</p>
+          <div class="setting-item">
+            <label>VS Code / Cursor / Windsurf Plugin</label>
+            <button id="install-vscode-btn" class="primary-btn">Install Plugin</button>
+          </div>
+          <div class="setting-item">
+            <label>Chrome / Edge / Brave Extension</label>
+            <button id="install-chrome-btn" class="secondary-btn">Add to Browser</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Cloud Data Sources (via MCP)</h2>
+          <p class="hint">Kết nối các nền tảng đám mây phổ biến thông qua Model Context Protocol để đánh giá năng lực làm việc toàn diện.</p>
+          
+          <div class="setting-item">
+            <label><strong>GitHub</strong> (Code Quality, PR Reviews)</label>
+            <input type="password" id="mcp-github-token" placeholder="Personal Access Token...">
+            <button id="mcp-github-btn" class="secondary-btn">Connect GitHub</button>
+          </div>
+          
+          <div class="setting-item">
+            <label><strong>Jira / Linear</strong> (Velocity, Task Management)</label>
+            <input type="password" id="mcp-jira-token" placeholder="API Token...">
+            <button id="mcp-jira-btn" class="secondary-btn">Connect Jira</button>
+          </div>
+
+          <div class="setting-item">
+            <label><strong>Slack / Discord</strong> (Communication, Tone & Voice)</label>
+            <input type="password" id="mcp-slack-token" placeholder="Bot Token...">
+            <button id="mcp-slack-btn" class="secondary-btn">Connect Slack</button>
+          </div>
+
+          <div class="setting-item">
+            <label><strong>Notion / Confluence</strong> (Documentation Skill)</label>
+            <input type="password" id="mcp-notion-token" placeholder="Integration Token...">
+            <button id="mcp-notion-btn" class="secondary-btn">Connect Notion</button>
+          </div>
+          <p id="mcp-status-log" style="font-size: 0.85em; color: green; margin-top: 10px;"></p>
         </div>
       </div>
 

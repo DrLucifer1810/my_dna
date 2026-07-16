@@ -1,3 +1,5 @@
+pub mod ingestion;
+
 use std::process::Command;
 
 #[tauri::command]

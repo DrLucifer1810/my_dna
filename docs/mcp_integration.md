@@ -12,16 +12,35 @@ Vai trò này cho phép các công cụ AI bên thứ ba (Cursor IDE, Claude Des
 - **URL Endpoint:** `http://localhost:5050/mcp/resources/user_dna`
 - **Port mặc định:** 5050 (Chạy nền trên Desktop của người dùng).
 
-## 2. Kết nối với Cursor IDE
-Để Cursor tự động tuân thủ các nguyên tắc code (Coding Habits & Principles) được cấu trúc trong MyDNA, bạn cần trỏ Context vào máy chủ MCP:
+## 2. Kết nối với các Công cụ AI (Cursor, Claude Desktop, Windsurf, v.v.)
+Vì MyDNA tuân thủ chuẩn mở MCP, **bất kỳ công cụ AI nào hỗ trợ MCP** đều có thể kết nối để đọc DNA của bạn (không riêng gì Cursor). Dưới đây là cách cấu hình cho một số nền tảng phổ biến:
 
+### A. Dành cho Cursor IDE
 1. Mở phần **Cursor Settings** -> **Features** -> **MCP**.
 2. Nhấn **+ Add New MCP Server**.
 3. Chọn loại kết nối (Type) là `SSE`.
 4. Nhập URL: `http://localhost:5050/mcp/resources/user_dna`.
 5. Đặt tên (Name): `MyDNA_Enterprise`.
 
-Khi bạn trò chuyện với Cursor AI, nó sẽ tự động nạp ngữ cảnh từ URL này.
+### B. Dành cho Claude Desktop
+1. Mở file cấu hình `claude_desktop_config.json`.
+2. Thêm cấu hình máy chủ MyDNA vào danh sách `mcpServers`:
+```json
+{
+  "mcpServers": {
+    "MyDNA_Enterprise": {
+      "command": "curl",
+      "args": ["http://localhost:5050/mcp/resources/user_dna"]
+    }
+  }
+}
+```
+*(Ghi chú: Vì MyDNA hỗ trợ SSE, Claude Desktop có thể cần cấu hình SSE url thay vì stdio command tùy phiên bản).*
+
+### C. Dành cho Windsurf / Cline / OpenClaw
+Tương tự như Cursor, bạn chỉ cần tìm mục **MCP Servers** trong phần Cài đặt của các công cụ này, chọn giao thức `SSE` và trỏ về `http://localhost:5050/mcp/resources/user_dna`.
+
+Khi bạn trò chuyện với bất kỳ AI nào trong danh sách trên, nó sẽ tự động nạp ngữ cảnh từ URL này. Đảm bảo tính nhất quán (Consistency) dù bạn đổi sang dùng IDE hay AI nào!
 
 ## 3. Cấu trúc Dữ liệu Trả về (JSON Payload)
 Máy chủ sẽ trả về một gói JSON tuân thủ chuẩn Resource của MCP. Nếu phát hiện tệp tin bị can thiệp trái phép, máy chủ sẽ trả về lỗi.

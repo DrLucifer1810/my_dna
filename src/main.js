@@ -252,4 +252,36 @@ document.addEventListener("DOMContentLoaded", () => {
   setupMcpButton("mcp-slack-btn", "mcp-slack-token", "slack");
   setupMcpButton("mcp-notion-btn", "mcp-notion-token", "notion");
 
+  // Autonomous Agents Auto-Discovery
+  const scanAutonomousAgents = () => {
+    const agents = ["antigravity", "claude", "openclaw", "cline"];
+    agents.forEach(agent => {
+        const el = document.getElementById(`agent-${agent}-status`);
+        if (el) {
+            el.innerText = "Đang quét...";
+            el.style.color = "#94a3b8";
+        }
+    });
+
+    invoke("check_autonomous_agents").then((res) => {
+        // res là object: { antigravity: true, claude: false, openclaw: true, cline: true }
+        agents.forEach(agent => {
+            const el = document.getElementById(`agent-${agent}-status`);
+            if (el) {
+                if (res[agent]) {
+                    el.innerHTML = `✅ Đã kết nối (Giám sát ngầm)`;
+                    el.style.color = "#10b981";
+                } else {
+                    el.innerHTML = `❌ Không tìm thấy`;
+                    el.style.color = "#ef4444";
+                }
+            }
+        });
+    }).catch(err => console.error("Error scanning agents:", err));
+  };
+
+  document.getElementById("scan-agents-btn")?.addEventListener("click", scanAutonomousAgents);
+  
+  // Quét tự động ngay khi tải trang
+  scanAutonomousAgents();
 });

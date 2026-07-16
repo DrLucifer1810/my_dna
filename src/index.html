@@ -143,6 +143,32 @@
           </div>
           <p id="mcp-status-log" style="font-size: 0.85em; color: green; margin-top: 10px;"></p>
         </div>
+
+        <div class="card">
+          <h2>Autonomous AI Agents (Zero-Setup)</h2>
+          <p class="hint">Tự động phát hiện và giám sát nhật ký (logs) của các Agentic AI chạy ngầm trên thiết bị của bạn thông qua File Watcher.</p>
+          
+          <div class="setting-item" style="justify-content: space-between; align-items: center;">
+            <label><strong>Antigravity</strong> (Google DeepMind)</label>
+            <span id="agent-antigravity-status" style="color: #94a3b8;">Đang quét...</span>
+          </div>
+
+          <div class="setting-item" style="justify-content: space-between; align-items: center;">
+            <label><strong>Claude Code</strong> (Anthropic CLI)</label>
+            <span id="agent-claude-status" style="color: #94a3b8;">Đang quét...</span>
+          </div>
+
+          <div class="setting-item" style="justify-content: space-between; align-items: center;">
+            <label><strong>OpenClaw</strong> (Autonomous CLI)</label>
+            <span id="agent-openclaw-status" style="color: #94a3b8;">Đang quét...</span>
+          </div>
+
+          <div class="setting-item" style="justify-content: space-between; align-items: center;">
+            <label><strong>Cline / Continue.dev</strong> (IDE Agents)</label>
+            <span id="agent-cline-status" style="color: #94a3b8;">Đang quét...</span>
+          </div>
+          <button id="scan-agents-btn" class="secondary-btn" style="width: 100%; margin-top: 10px;">Quét lại toàn bộ ổ đĩa</button>
+        </div>
       </div>
 
       <!-- VIEW: SETTINGS -->

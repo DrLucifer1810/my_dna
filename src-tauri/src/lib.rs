@@ -447,7 +447,8 @@ pub fn run() {
             crate::slm_client::webview_selectors::update_gemini_selectors,
             crate::integrations::install_vscode_extension,
             crate::integrations::open_chrome_extension_store,
-            crate::integrations::connect_mcp_server
+            crate::integrations::connect_mcp_server,
+            crate::integrations::check_autonomous_agents
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

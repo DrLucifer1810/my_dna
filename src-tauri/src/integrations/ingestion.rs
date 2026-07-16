@@ -90,4 +90,46 @@ impl IngestionEngine {
             timestamp: Utc::now().to_rfc3339(),
         })
     }
+
+    /// Chuẩn hóa dữ liệu từ Antigravity (Google DeepMind)
+    pub fn parse_antigravity_log(payload: Value) -> Option<NormalizedEvent> {
+        let step_type = payload.get("type").and_then(|v| v.as_str()).unwrap_or("");
+        let content = payload.get("content").and_then(|v| v.as_str()).unwrap_or("");
+        
+        if step_type == "USER_INPUT" || step_type == "PLANNER_RESPONSE" {
+            return Some(NormalizedEvent {
+                event_type: "AGENTIC_LLM".to_string(),
+                title: format!("[ANTIGRAVITY] {}", step_type),
+                content: content.to_string(),
+                timestamp: Utc::now().to_rfc3339(),
+            });
+        }
+        None
+    }
+
+    /// Chuẩn hóa dữ liệu từ Claude Code (Anthropic CLI)
+    pub fn parse_claude_code_log(payload: Value) -> Option<NormalizedEvent> {
+        let command = payload.get("command").and_then(|v| v.as_str()).unwrap_or("");
+        let response = payload.get("response").and_then(|v| v.as_str()).unwrap_or("");
+        
+        Some(NormalizedEvent {
+            event_type: "AGENTIC_LLM".to_string(),
+            title: format!("[CLAUDE_CODE] Command: {}", command),
+            content: response.to_string(),
+            timestamp: Utc::now().to_rfc3339(),
+        })
+    }
+
+    /// Chuẩn hóa dữ liệu từ OpenClaw (Autonomous CLI)
+    pub fn parse_openclaw_log(payload: Value) -> Option<NormalizedEvent> {
+        let action = payload.get("action").and_then(|v| v.as_str()).unwrap_or("Action");
+        let details = payload.get("details").and_then(|v| v.as_str()).unwrap_or("");
+        
+        Some(NormalizedEvent {
+            event_type: "AGENTIC_LLM".to_string(),
+            title: format!("[OPENCLAW] {}", action),
+            content: details.to_string(),
+            timestamp: Utc::now().to_rfc3339(),
+        })
+    }
 }

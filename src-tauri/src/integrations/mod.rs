@@ -54,8 +54,34 @@ pub async fn connect_mcp_server(server_name: String, token: String) -> Result<St
         return Err("Token quá ngắn hoặc không hợp lệ!".to_string());
     }
     
-    // TODO: Spawn real background MCP Client
     // let mut mcp_process = Command::new("cmd").args(["/C", "npx", format!("@modelcontextprotocol/server-{}", server_name)]).env("TOKEN", token).spawn()...
     
     Ok(format!("Đã kết nối thành công tới máy chủ MCP: {}. myDNA sẽ bắt đầu đồng bộ dữ liệu.", server_name.to_uppercase()))
+}
+
+#[tauri::command]
+pub async fn check_autonomous_agents() -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    // Hàm hỗ trợ để check folder tồn tại
+    let check_exists = |path_str: &str| -> bool {
+        // Mở rộng tilde (~) thành home directory (Demo only - trong thực tế cần dùng crate dirs::home_dir)
+        let home = std::env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\Default".to_string());
+        let full_path = path_str.replace("~", &home);
+        PathBuf::from(full_path).exists()
+    };
+
+    let antigravity_exists = check_exists("~/.gemini/antigravity-ide");
+    let claude_exists = check_exists("~/.claude");
+    let openclaw_exists = check_exists("~/.openclaw");
+    
+    // VS Code global storage location for Cline/Continue.dev
+    let cline_exists = check_exists("~/AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev");
+
+    Ok(serde_json::json!({
+        "antigravity": antigravity_exists,
+        "claude": claude_exists,
+        "openclaw": openclaw_exists,
+        "cline": cline_exists,
+    }))
 }

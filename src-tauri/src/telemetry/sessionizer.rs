@@ -23,10 +23,7 @@ impl Sessionizer {
         "Other".to_string()
     }
 
-    /// Khử nhiễu phím gõ (Keystroke Reconstructor)
-    fn compress_keystrokes(raw: &str) -> String {
-        raw.to_string()
-    }
+
 
     /// Background Batch Job: Gom nhóm các Events thành Sessions ngữ nghĩa
     pub fn process_raw_events(state: Arc<Mutex<StateMachine>>) -> Result<()> {
@@ -139,12 +136,10 @@ impl Sessionizer {
                        active_window_start = Some(current_time);
                     }
                     
-                } else if event_type == "KEYSTROKES" {
-                    let compressed = Self::compress_keystrokes(&raw_content);
-                    current_context.push_str(&format!("(Typing): {} ", compressed));
                 } else if event_type == "FOCUSED_TEXT" {
-                    if raw_content.len() > 50 {
-                        current_context.push_str(&format!("\n[{}] [SCREEN DUMP]: {}\n", timestamp_str, raw_content));
+                    // Xử lý UIA Snapshot (Không dùng Keylogger nữa)
+                    if raw_content.len() > 20 { // Text đủ dài
+                        current_context.push_str(&format!("\n[{}] {}\n", timestamp_str, raw_content));
                     }
                 }
                 last_timestamp = timestamp_str;

@@ -1,0 +1,38 @@
+{
+  "name": "mydna-telemetry",
+  "displayName": "myDNA Telemetry Agent",
+  "description": "Thành phần thu thập và lắng nghe sự kiện LLM cho myDNA",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mydna.connect",
+        "title": "myDNA: Connect to Local Server"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "18.x",
+    "typescript": "^5.1.3",
+    "@types/ws": "^8.5.5"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
+  }
+}

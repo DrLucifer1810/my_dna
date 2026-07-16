@@ -56,7 +56,8 @@ impl StateMachine {
             "CREATE TABLE IF NOT EXISTS session_evaluations (
                 session_id INTEGER PRIMARY KEY,
                 prompt_quality INTEGER,
-                edit_ratio REAL,
+                prompting_skill INTEGER,
+                verification_skill INTEGER,
                 competence INTEGER,
                 discipline INTEGER,
                 creativity INTEGER,
@@ -69,6 +70,9 @@ impl StateMachine {
             )",
             [],
         )?;
+        
+        let _ = conn.execute("ALTER TABLE session_evaluations ADD COLUMN prompting_skill INTEGER DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE session_evaluations ADD COLUMN verification_skill INTEGER DEFAULT 0", []);
 
         // Phase 1.9: Bảng User DNA để lưu kết quả phân tích từ nhiều Agent khác nhau
         conn.execute(
@@ -236,7 +240,7 @@ mod tests {
         // Dùng SQLite in-memory để test không chạm đĩa
         let sm = StateMachine::new(":memory:").expect("Failed to init in-memory DB");
         
-        sm.log_window_change("MySecretApp", 1234).unwrap();
+        sm.log_window_change("MySecretApp", 1234, 0).unwrap();
         sm.log_clipboard_event("clip_123", "Pasted Code 100%").unwrap();
         sm.log_file_saved("C:\\path\\code.rs", "fn main() {}").unwrap();
         

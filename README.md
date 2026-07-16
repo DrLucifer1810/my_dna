@@ -14,10 +14,11 @@ Hệ thống không chỉ đếm số lượng copy/paste, mà sử dụng AI đ
 - **Làm việc nhóm (Collaboration):** Kết quả cuối cùng có dễ đọc, dễ chia sẻ cho team không?
 - **Hiệu suất AI (AI Token Efficiency):** Bạn dùng prompt có ngắn gọn, tiết kiệm chi phí Token nhưng mang lại hiệu quả cao không?
 
-### 2. Diff Engine & Token Efficiency
-Hệ thống tự động theo dõi khi bạn nhận kết quả từ AI (Clipboard Copy) và lưu file (File Saved).
-- Tính toán **Edit Ratio**: Đo lường lượng thời gian bạn phải bỏ ra để sửa lại kết quả của AI.
-- Tính toán **Token Efficiency**: Đánh giá chi phí (dung lượng prompt) so với chất lượng cuối cùng.
+### 2. Omniscient Sensor & Semantic Filter (V2)
+Hệ thống thu thập dữ liệu thô và lọc trực tiếp dưới Local bằng thuật toán nâng cao:
+- **Regex Rule Engine**: Phân loại tự động các luồng sự kiện (Development, Communication, Research, Distraction) dựa trên rules cấu hình, loại bỏ hardcode if/else.
+- **Flood Algorithm (De-duplication)**: Thuật toán nén sự kiện và khử nhiễu AFK/Alt-Tab ngắn hạn (< 5s), đảm bảo Timeline sạch sẽ trước khi đưa vào LLM phân tích.
+- **Activity Burst Batching**: Cắt Session dựa trên khối lượng hoạt động thay vì Clipboard/Save, giúp AI nhìn nhận được trọn vẹn ngữ cảnh (Context) của user.
 
 ### 3. User Profiling Diagnostic
 Dựa trên tất cả các tài liệu bạn đã đọc, code bạn đã viết, email bạn đã gửi trong 24 giờ qua:
